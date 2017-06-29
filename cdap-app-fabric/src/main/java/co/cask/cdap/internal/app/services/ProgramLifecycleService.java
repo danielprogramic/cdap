@@ -99,6 +99,7 @@ public class ProgramLifecycleService extends AbstractIdleService {
     .registerTypeAdapterFactory(new CaseInsensitiveEnumTypeAdapterFactory())
     .create();
 
+  private final ProgramNotificationSubscriberService programNotificationSubscriberService;
   private final Store store;
   private final ProgramRuntimeService runtimeService;
   private final CConfiguration cConf;
@@ -111,6 +112,7 @@ public class ProgramLifecycleService extends AbstractIdleService {
 
   @Inject
   ProgramLifecycleService(Store store, NamespaceStore nsStore, ProgramRuntimeService runtimeService,
+                          ProgramNotificationSubscriberService programNotificationSubscriberService,
                           CConfiguration cConf, PropertiesResolver propertiesResolver,
                           PreferencesStore preferencesStore, AuthorizationEnforcer authorizationEnforcer,
                           AuthenticationContext authenticationContext, Scheduler scheduler) {
@@ -118,6 +120,7 @@ public class ProgramLifecycleService extends AbstractIdleService {
     this.nsStore = nsStore;
     this.runtimeService = runtimeService;
     this.propertiesResolver = propertiesResolver;
+    this.programNotificationSubscriberService = programNotificationSubscriberService;
     this.cConf = cConf;
     this.preferencesStore = preferencesStore;
     this.authorizationEnforcer = authorizationEnforcer;
@@ -128,8 +131,6 @@ public class ProgramLifecycleService extends AbstractIdleService {
   @Override
   protected void startUp() throws Exception {
     LOG.info("Starting ProgramLifecycleService");
-
-
   }
 
   @Override
