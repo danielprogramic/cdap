@@ -31,6 +31,7 @@ import co.cask.cdap.app.runtime.ProgramStateWriter;
 import co.cask.cdap.app.runtime.WorkflowTokenProvider;
 import co.cask.cdap.common.app.RunIds;
 import co.cask.cdap.common.conf.CConfiguration;
+import co.cask.cdap.internal.app.program.StateChangeListener;
 import co.cask.cdap.internal.app.runtime.AbstractListener;
 import co.cask.cdap.internal.app.runtime.BasicArguments;
 import co.cask.cdap.internal.app.runtime.ProgramOptionConstants;
@@ -160,6 +161,11 @@ final class DefaultProgramWorkflowRunner implements ProgramWorkflowRunner {
       Closeables.closeQuietly(closeable);
       throw t;
     }
+
+    controller.addListener(
+      new StateChangeListener(program.getId().run(runId), twillRunId, programStateWriter),
+      Threads.SAME_THREAD_EXECUTOR
+    );
     blockForCompletion(closeable, controller);
 
     if (controller instanceof WorkflowTokenProvider) {

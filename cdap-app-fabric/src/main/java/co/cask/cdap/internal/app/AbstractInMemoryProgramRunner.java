@@ -23,8 +23,9 @@ import co.cask.cdap.app.runtime.ProgramRunner;
 import co.cask.cdap.app.runtime.ProgramStateWriter;
 import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.common.conf.Constants;
-import co.cask.cdap.internal.app.program.AbstractStateChangeProgramController;
+import co.cask.cdap.internal.app.program.StateChangeListener;
 import co.cask.cdap.internal.app.runtime.AbstractListener;
+import co.cask.cdap.internal.app.runtime.AbstractProgramController;
 import co.cask.cdap.internal.app.runtime.BasicArguments;
 import co.cask.cdap.internal.app.runtime.ProgramOptionConstants;
 import co.cask.cdap.internal.app.runtime.SimpleProgramOptions;
@@ -87,7 +88,8 @@ public abstract class AbstractInMemoryProgramRunner implements ProgramRunner {
         components.put(program.getName(), instanceId, controller);
       }
 
-      return new InMemoryProgramController(components, program, runId, options, programStateWriter);
+      ProgramController controller = new InMemoryProgramController(components, program, runId, options);
+      return addStateChangeListener(controller);
     } catch (Throwable t) {
       LOG.error("Failed to start all program instances", t);
       try {
@@ -108,6 +110,14 @@ public abstract class AbstractInMemoryProgramRunner implements ProgramRunner {
     }
   }
 
+  protected final ProgramController addStateChangeListener(ProgramController controller) {
+    controller.addListener(
+      new StateChangeListener(controller.getProgramRunId(), null, programStateWriter),
+      Threads.SAME_THREAD_EXECUTOR
+    );
+    return controller;
+  }
+
   private ProgramOptions createComponentOptions(String name, int instanceId, int instances, RunId runId,
                                                 ProgramOptions options) {
     Map<String, String> systemOptions = Maps.newHashMap();
@@ -122,7 +132,7 @@ public abstract class AbstractInMemoryProgramRunner implements ProgramRunner {
   /**
    * ProgramController to manage multiple in-memory instances of a Program.
    */
-  private final class InMemoryProgramController extends AbstractStateChangeProgramController {
+  private final class InMemoryProgramController extends AbstractProgramController {
     private final Table<String, Integer, ProgramController> components;
     private final Program program;
     private final ProgramOptions options;
@@ -131,9 +141,8 @@ public abstract class AbstractInMemoryProgramRunner implements ProgramRunner {
     private volatile Throwable errorCause;
 
     InMemoryProgramController(Table<String, Integer, ProgramController> components,
-                              Program program, RunId runId, ProgramOptions options,
-                              ProgramStateWriter programStateWriter) {
-      super(program.getId().run(runId), null, programStateWriter, null);
+                              Program program, RunId runId, ProgramOptions options) {
+      super(program.getId(), runId);
       this.program = program;
       this.components = components;
       this.options = options;
