@@ -38,7 +38,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.inject.Inject;
 import org.apache.twill.api.RunId;
 import org.apache.twill.common.Threads;
 import org.slf4j.Logger;
@@ -51,7 +50,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * ProgramRunner that can be used to manage multiple in-memory instances of a Program.
+ * ProgramRunner that handles starting the program runner for in-memory mode. It can also be used to manage
+ * multiple in-memory instances of a Program.
  */
 public abstract class AbstractInMemoryProgramRunner implements ProgramRunner {
 
@@ -59,17 +59,28 @@ public abstract class AbstractInMemoryProgramRunner implements ProgramRunner {
 
   private final String host;
   private final ProgramStateWriter programStateWriter;
+  private final ProgramRunner runner;
 
-  @Inject
-  protected AbstractInMemoryProgramRunner(CConfiguration cConf, ProgramStateWriter programStateWriter) {
+  protected AbstractInMemoryProgramRunner(CConfiguration cConf, ProgramRunner runner,
+                                          ProgramStateWriter programStateWriter) {
     this.host = cConf.get(Constants.Service.MASTER_SERVICES_BIND_ADDRESS);
+    this.runner = runner;
     this.programStateWriter = programStateWriter;
   }
 
-  /**
-   * Creates a {@link ProgramRunner} that start the type of program that this program runner supports.
-   */
-  protected abstract ProgramRunner createProgramRunner();
+  public ProgramRunner getProgramRunner() {
+    return runner;
+  }
+
+  @Override
+  public ProgramController run(Program program, ProgramOptions options) {
+    // A default implementation of the run method is to invoke the run method
+    // with the passed in program and options and add a state change listener
+    // on the returned controller
+
+    // This simple implementation is overridden by programs that have multiple instances
+    return addStateChangeListener(getProgramRunner().run(program, options));
+  }
 
   /**
    * Starts all instances of a Program component.
@@ -78,13 +89,13 @@ public abstract class AbstractInMemoryProgramRunner implements ProgramRunner {
    * @param runId The runId
    * @param numInstances number of component instances to start
    */
-  protected final ProgramController startAll(Program program, ProgramOptions options, RunId runId, int numInstances) {
+  protected final ProgramController runAll(Program program, ProgramOptions options, RunId runId, int numInstances) {
     Table<String, Integer, ProgramController> components = HashBasedTable.create();
     try {
       for (int instanceId = 0; instanceId < numInstances; instanceId++) {
         ProgramOptions componentOptions = createComponentOptions(program.getName(), instanceId,
                                                                  numInstances, runId, options);
-        ProgramController controller = createProgramRunner().run(program, componentOptions);
+        ProgramController controller = getProgramRunner().run(program, componentOptions);
         components.put(program.getName(), instanceId, controller);
       }
 
@@ -109,7 +120,7 @@ public abstract class AbstractInMemoryProgramRunner implements ProgramRunner {
     }
   }
 
-  protected final ProgramController addStateChangeListener(ProgramController controller) {
+  private ProgramController addStateChangeListener(ProgramController controller) {
     controller.addListener(
       new StateChangeListener(controller.getProgramRunId(), null, programStateWriter),
       Threads.SAME_THREAD_EXECUTOR
@@ -261,7 +272,7 @@ public abstract class AbstractInMemoryProgramRunner implements ProgramRunner {
       // create more runnable instances, if necessary.
       for (int instanceId = liveCount; instanceId < newCount; instanceId++) {
         ProgramOptions programOptions = createComponentOptions(runnableName, instanceId, newCount, getRunId(), options);
-        ProgramController controller = createProgramRunner().run(program, programOptions);
+        ProgramController controller = getProgramRunner().run(program, programOptions);
         components.put(runnableName, instanceId, controller);
       }
 

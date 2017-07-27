@@ -22,7 +22,6 @@ import co.cask.cdap.api.worker.WorkerSpecification;
 import co.cask.cdap.app.program.Program;
 import co.cask.cdap.app.runtime.ProgramController;
 import co.cask.cdap.app.runtime.ProgramOptions;
-import co.cask.cdap.app.runtime.ProgramRunner;
 import co.cask.cdap.app.runtime.ProgramStateWriter;
 import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.internal.app.AbstractInMemoryProgramRunner;
@@ -37,15 +36,12 @@ import org.apache.twill.api.RunId;
 /**
  * For running {@link Worker}. Only used in in-memory/standalone mode.
  */
-public class InMemoryWorkerRunner extends AbstractInMemoryProgramRunner {
-
-  private final Provider<WorkerProgramRunner> workerProgramRunnerProvider;
+public final class InMemoryWorkerRunner extends AbstractInMemoryProgramRunner {
 
   @Inject
   InMemoryWorkerRunner(CConfiguration cConf, Provider<WorkerProgramRunner> workerProgramRunnerProvider,
                        ProgramStateWriter programStateWriter) {
-    super(cConf, programStateWriter);
-    this.workerProgramRunnerProvider = workerProgramRunnerProvider;
+    super(cConf, workerProgramRunnerProvider.get(), programStateWriter);
   }
 
   @Override
@@ -69,13 +65,8 @@ public class InMemoryWorkerRunner extends AbstractInMemoryProgramRunner {
                                                                 workerSpec.getDatasets(), workerSpec.getResources(),
                                                                 Integer.valueOf(instances));
 
-    //RunId for worker
+    // RunId for Worker
     RunId runId = ProgramRunners.getRunId(options);
-    return startAll(program, options, runId, newWorkerSpec.getInstances());
-  }
-
-  @Override
-  protected ProgramRunner createProgramRunner() {
-    return workerProgramRunnerProvider.get();
+    return runAll(program, options, runId, newWorkerSpec.getInstances());
   }
 }
