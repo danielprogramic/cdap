@@ -131,11 +131,13 @@ public class ProgramLifecycleService extends AbstractIdleService {
   @Override
   protected void startUp() throws Exception {
     LOG.info("Starting ProgramLifecycleService");
+    programNotificationSubscriberService.startAndWait();
   }
 
   @Override
   protected void shutDown() throws Exception {
     LOG.info("Shutting down ProgramLifecycleService");
+    programNotificationSubscriberService.shutDown();
   }
 
   /**
