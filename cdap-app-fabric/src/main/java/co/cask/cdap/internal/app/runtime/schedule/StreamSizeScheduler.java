@@ -29,7 +29,9 @@ import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.stream.notification.StreamSizeNotification;
 import co.cask.cdap.internal.app.runtime.ProgramOptionConstants;
 import co.cask.cdap.internal.app.runtime.schedule.store.DatasetBasedStreamSizeScheduleStore;
-import co.cask.cdap.internal.app.runtime.schedule.store.Schedulers;
+import co.cask.cdap.internal.app.runtime.schedule.trigger.CompositeTrigger;
+import co.cask.cdap.internal.app.runtime.schedule.trigger.SatisfiableTrigger;
+import co.cask.cdap.internal.app.runtime.schedule.trigger.StreamSizeTrigger;
 import co.cask.cdap.internal.schedule.StreamSizeSchedule;
 import co.cask.cdap.messaging.MessagingService;
 import co.cask.cdap.notifications.service.NotificationContext;
@@ -37,6 +39,7 @@ import co.cask.cdap.notifications.service.NotificationHandler;
 import co.cask.cdap.notifications.service.NotificationService;
 import co.cask.cdap.proto.Id;
 import co.cask.cdap.proto.Notification;
+import co.cask.cdap.proto.ProtoTrigger;
 import co.cask.cdap.proto.ScheduledRuntime;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.NotificationFeedId;
@@ -61,10 +64,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executor;
@@ -208,42 +212,117 @@ public class StreamSizeScheduler implements Scheduler {
     }
   }
 
+  /**
+   * @return a list of task names composed of program, programType and scheduleName (also stream id and dataTriggerMB
+   * if the trigger in the schedule is a composite trigger)
+   */
+  private List<String> getTaskNames(ProgramSchedule schedule) {
+    List<String> schedules = new ArrayList<>();
+    if (schedule.getTrigger() instanceof CompositeTrigger) {
+      for (SatisfiableTrigger trigger :
+        ((CompositeTrigger) schedule.getTrigger()).getUnitTriggers().get(ProtoTrigger.Type.STREAM_SIZE)) {
+        StreamSizeTrigger streamSizeTrigger = (StreamSizeTrigger) trigger;
+        String taskName = AbstractSchedulerService.getTaskName(
+          schedule.getProgramId(), schedule.getProgramId().getType().getSchedulableType(), schedule.getName(),
+          streamSizeTrigger.getStreamId(), streamSizeTrigger.getTriggerMB());
+        schedules.add(taskName);
+      }
+      return schedules;
+    }
+    String taskName = AbstractSchedulerService.scheduleIdFor(
+      schedule.getProgramId(), schedule.getProgramId().getType().getSchedulableType(), schedule.getName());
+    schedules.add(taskName);
+    return schedules;
+  }
+
+  private static StreamSizeSchedule toStreamSizeSchedule(String scheduleName, String description,
+                                                         StreamSizeTrigger trigger) {
+    return new StreamSizeSchedule(scheduleName, description, trigger.getStreamId().getStream(), trigger.getTriggerMB());
+  }
+
+  private static Map<String, StreamSizeSchedule> toStreamSizeSchedules(ProgramSchedule schedule) {
+    Map<String, StreamSizeSchedule> schedules = new HashMap<>();
+    if (schedule.getTrigger() instanceof CompositeTrigger) {
+      for (SatisfiableTrigger trigger :
+        ((CompositeTrigger) schedule.getTrigger()).getUnitTriggers().get(ProtoTrigger.Type.STREAM_SIZE)) {
+        StreamSizeTrigger streamSizeTrigger = (StreamSizeTrigger) trigger;
+        String taskName = AbstractSchedulerService.getTaskName(schedule.getProgramId(),
+                                                               schedule.getProgramId().getType().getSchedulableType(),
+                                                               schedule.getName(), streamSizeTrigger.getStreamId(),
+                                                               streamSizeTrigger.getTriggerMB());
+        schedules.put(taskName, toStreamSizeSchedule(schedule.getName(), schedule.getDescription(), streamSizeTrigger));
+      }
+      return schedules;
+    }
+    String taskName = AbstractSchedulerService.scheduleIdFor(schedule.getProgramId(),
+                                                             schedule.getProgramId().getType().getSchedulableType(),
+                                                             schedule.getName());
+    schedules.put(taskName, toStreamSizeSchedule(schedule.getName(), schedule.getDescription(),
+                                                 (StreamSizeTrigger) schedule.getTrigger()));
+    return schedules;
+  }
+
   @Override
   public void addProgramSchedule(ProgramSchedule schedule) throws AlreadyExistsException, SchedulerException {
     ProgramId program = schedule.getProgramId();
-    StreamSizeSchedule streamSizeSchedule = Schedulers.toStreamSizeSchedule(schedule);
-    scheduleStreamSizeSchedule(program, program.getType().getSchedulableType(),
-                               schedule.getProperties(), streamSizeSchedule);
+    for (Map.Entry<String, StreamSizeSchedule> entry : toStreamSizeSchedules(schedule).entrySet()) {
+      scheduleStreamSizeSchedule(program, entry.getKey(), schedule.getProperties(), entry.getValue());
+    }
   }
 
   @Override
   public void deleteProgramSchedule(ProgramSchedule schedule) throws NotFoundException, SchedulerException {
-    deleteSchedule(schedule.getProgramId(), schedule.getProgramId().getType().getSchedulableType(),
-                   schedule.getName());
+    ProgramId programId = schedule.getProgramId();
+    String scheduleName = schedule.getName();
+    List<String> taskNames = getTaskNames(schedule);
+    for (String taskName : taskNames) {
+      StreamSubscriber subscriber = scheduleSubscribers.remove(taskName);
+      if (subscriber == null) {
+        throw new ScheduleNotFoundException(programId.getParent().schedule(scheduleName));
+      }
+      // We don't delete a StreamSubscriber, even if it has zero task. We keep an empty subscriber so that we don't
+      // have to worry about race conditions between add/delete of schedules
+      subscriber.deleteSchedule(taskName, programId, scheduleName);
+    }
   }
 
   @Override
   public void suspendProgramSchedule(ProgramSchedule schedule) throws NotFoundException, SchedulerException {
-    suspendSchedule(schedule.getProgramId(), schedule.getProgramId().getType().getSchedulableType(),
-                    schedule.getName());
+    ProgramId programId = schedule.getProgramId();
+    String scheduleName = schedule.getName();
+    List<String> taskNames = getTaskNames(schedule);
+    for (String taskName : taskNames) {
+      StreamSubscriber subscriber = scheduleSubscribers.get(taskName);
+      if (subscriber == null) {
+        throw new ScheduleNotFoundException(programId.getParent().schedule(scheduleName));
+      }
+      subscriber.suspendScheduleTask(programId, taskName, scheduleName);
+    }
   }
 
   @Override
   public void resumeProgramSchedule(ProgramSchedule schedule) throws NotFoundException, SchedulerException {
-    resumeSchedule(schedule.getProgramId(), schedule.getProgramId().getType().getSchedulableType(),
-                   schedule.getName());
+    ProgramId programId = schedule.getProgramId();
+    String scheduleName = schedule.getName();
+    List<String> taskNames = getTaskNames(schedule);
+    for (String taskName : taskNames) {
+      StreamSubscriber subscriber = scheduleSubscribers.get(taskName);
+      if (subscriber == null) {
+        throw new ScheduleNotFoundException(programId.getParent().schedule(scheduleName));
+      }
+      subscriber.resumeScheduleTask(programId, taskName, scheduleName);
+    }
   }
 
-  private void scheduleStreamSizeSchedule(ProgramId program, SchedulableProgramType programType,
-                                          Map<String, String> properties, StreamSizeSchedule streamSizeSchedule)
+  private void scheduleStreamSizeSchedule(ProgramId program, String taskName, Map<String, String> properties,
+                                          StreamSizeSchedule streamSizeSchedule)
     throws SchedulerException {
 
     StreamSubscriber streamSubscriber = streamSubscriberForSchedule(program, streamSizeSchedule);
 
     // Add the scheduleTask to the StreamSubscriber
-    streamSubscriber.createScheduleTask(program, programType, streamSizeSchedule, properties);
-    scheduleSubscribers.put(AbstractSchedulerService.scheduleIdFor(program, programType, streamSizeSchedule.getName()),
-                            streamSubscriber);
+    streamSubscriber.createScheduleTask(program, taskName, streamSizeSchedule, properties);
+    scheduleSubscribers.put(taskName, streamSubscriber);
   }
 
   /**
@@ -291,70 +370,11 @@ public class StreamSizeScheduler implements Scheduler {
   }
 
   @Override
-  public void suspendSchedule(ProgramId program, SchedulableProgramType programType, String scheduleName)
-    throws ScheduleNotFoundException, SchedulerException {
-    String scheduleId = AbstractSchedulerService.scheduleIdFor(program, programType, scheduleName);
-    StreamSubscriber subscriber = scheduleSubscribers.get(scheduleId);
-    if (subscriber == null) {
-      throw new ScheduleNotFoundException(program.getParent().schedule(scheduleName));
-    }
-    subscriber.suspendScheduleTask(program, programType, scheduleName);
-  }
-
-  @Override
-  public void resumeSchedule(ProgramId program, SchedulableProgramType programType, String scheduleName)
-    throws ScheduleNotFoundException, SchedulerException {
-    String scheduleId = AbstractSchedulerService.scheduleIdFor(program, programType, scheduleName);
-    StreamSubscriber subscriber = scheduleSubscribers.get(scheduleId);
-    if (subscriber == null) {
-      throw new ScheduleNotFoundException(program.getParent().schedule(scheduleName));
-    }
-    subscriber.resumeScheduleTask(program, programType, scheduleName);
-  }
-
-  @Override
-  public void deleteSchedule(ProgramId programId, SchedulableProgramType programType, String scheduleName)
-    throws ScheduleNotFoundException, SchedulerException {
-    String scheduleId = AbstractSchedulerService.scheduleIdFor(programId, programType, scheduleName);
-    StreamSubscriber subscriber = scheduleSubscribers.remove(scheduleId);
-    if (subscriber == null) {
-      throw new ScheduleNotFoundException(programId.getParent().schedule(scheduleName));
-    }
-    subscriber.deleteSchedule(programId, programType, scheduleName);
-    // We don't delete a StreamSubscriber, even if it has zero task. We keep an empty subscriber so that we don't
-    // have to worry about race conditions between add/delete of schedules
-  }
-
-  @Override
-  public void deleteSchedules(ProgramId programId, SchedulableProgramType programType) throws SchedulerException {
-    char startChar = ':';
-    char endChar = (char) (startChar + 1);
-    String programScheduleId = AbstractSchedulerService.programIdFor(programId, programType);
-    NavigableSet<String> scheduleIds = scheduleSubscribers.subMap(String.format("%s%c", programScheduleId, startChar),
-                                                                  String.format("%s%c", programScheduleId, endChar))
-      .keySet();
-    int scheduleIdIdx = programScheduleId.length() + 1;
-    for (String scheduleId : scheduleIds) {
-      try {
-        if (scheduleId.length() < scheduleIdIdx) {
-          LOG.warn("Format of scheduleID incorrect: {}", scheduleId);
-          continue;
-        }
-        deleteSchedule(programId, programType, scheduleId.substring(scheduleIdIdx));
-      } catch (ScheduleNotFoundException e) {
-        // Could be a race, the schedule has just been deleted
-        LOG.debug("Could not delete schedule, it might have been deleted already by another thread '{}'",
-                  scheduleId, e);
-      }
-    }
-  }
-
-  @Override
   public ProgramScheduleStatus scheduleState(ProgramId program, SchedulableProgramType programType,
                                              String scheduleName)
     throws SchedulerException, ScheduleNotFoundException {
     StreamSubscriber subscriber = scheduleSubscribers.get(AbstractSchedulerService.scheduleIdFor(program, programType,
-                                                                                                 scheduleName));
+                                                                                                  scheduleName));
     if (subscriber != null) {
       return subscriber.scheduleTaskState(program, programType, scheduleName);
     }
@@ -563,14 +583,12 @@ public class StreamSizeScheduler implements Scheduler {
     /**
      * Add a new scheduling task to this {@link StreamSubscriber}.
      */
-    public void createScheduleTask(ProgramId programId, SchedulableProgramType programType,
-                                   StreamSizeSchedule streamSizeSchedule, Map<String, String> properties)
+    public void createScheduleTask(ProgramId programId, String taskName, StreamSizeSchedule streamSizeSchedule,
+                                   Map<String, String> properties)
       throws SchedulerException {
       StreamSize streamSize;
       synchronized (this) {
-        String scheduleId = AbstractSchedulerService.scheduleIdFor(programId, programType,
-                                                                   streamSizeSchedule.getName());
-        StreamSizeScheduleTask previous = scheduleTasks.get(scheduleId);
+        StreamSizeScheduleTask previous = scheduleTasks.get(taskName);
         if (previous != null) {
           // We cannot replace an existing schedule - that functionality is not wanted - yet
           throw new SchedulerException("Tried to overwrite schedule " + streamSizeSchedule.getName());
@@ -587,14 +605,14 @@ public class StreamSizeScheduler implements Scheduler {
         }
 
         // Initialize the schedule task
-        StreamSizeScheduleTask newTask = new StreamSizeScheduleTask(programId, programType, streamSizeSchedule,
-                                                                    properties);
+        StreamSizeScheduleTask newTask = new StreamSizeScheduleTask(programId, programId.getType().getSchedulableType(),
+                                                                    streamSizeSchedule, properties);
 
         // First time that we create this schedule, it has to be initialized with the latest polling info
         newTask.storeNewSchedule(streamSize.getSize(), streamSize.getTimestamp());
 
         // We only modify the scheduleTasks if the persistence in startSchedule() did not throw any exception
-        scheduleTasks.put(scheduleId, newTask);
+        scheduleTasks.put(taskName, newTask);
       }
     }
 
@@ -620,7 +638,7 @@ public class StreamSizeScheduler implements Scheduler {
                                                       long basePollSize, long basePollTs, long lastRunSize,
                                                       long lastRunTs) throws SchedulerException {
       String scheduleId = AbstractSchedulerService.scheduleIdFor(programId, programType,
-                                                                 streamSizeSchedule.getName());
+                                                                  streamSizeSchedule.getName());
       StreamSizeScheduleTask previous = scheduleTasks.get(scheduleId);
       if (previous != null) {
         // We cannot replace an existing schedule - that functionality is not wanted - yet
@@ -641,12 +659,9 @@ public class StreamSizeScheduler implements Scheduler {
     /**
      * Suspend a scheduling task that is based on the data received by the stream referenced by {@code this} object.
      */
-    public synchronized void suspendScheduleTask(ProgramId programId, SchedulableProgramType programType,
-                                                 String scheduleName)
+    public synchronized void suspendScheduleTask(ProgramId programId, String taskName, String scheduleName)
       throws ScheduleNotFoundException, SchedulerException {
-
-      String scheduleId = AbstractSchedulerService.scheduleIdFor(programId, programType, scheduleName);
-      StreamSizeScheduleTask task = scheduleTasks.get(scheduleId);
+      StreamSizeScheduleTask task = scheduleTasks.get(taskName);
       if (task == null) {
         throw new ScheduleNotFoundException(programId.getParent().schedule(scheduleName));
       }
@@ -658,12 +673,9 @@ public class StreamSizeScheduler implements Scheduler {
     /**
      * Resume a scheduling task that is based on the data received by the stream referenced by {@code this} object.
      */
-    public synchronized void resumeScheduleTask(ProgramId programId, SchedulableProgramType programType,
-                                                String scheduleName)
+    public synchronized void resumeScheduleTask(ProgramId programId, String taskName, String scheduleName)
       throws ScheduleNotFoundException, SchedulerException {
-      final StreamSizeScheduleTask task;
-      String scheduleId = AbstractSchedulerService.scheduleIdFor(programId, programType, scheduleName);
-      task = scheduleTasks.get(scheduleId);
+      final StreamSizeScheduleTask task = scheduleTasks.get(taskName);
       if (task == null) {
         throw new ScheduleNotFoundException(programId.getParent().schedule(scheduleName));
       }
@@ -685,10 +697,9 @@ public class StreamSizeScheduler implements Scheduler {
     /**
      * Delete a scheduling task that is based on the data received by the stream referenced by {@code this} object.
      */
-    public synchronized void deleteSchedule(ProgramId program, SchedulableProgramType programType,
-                                            String scheduleName) throws ScheduleNotFoundException, SchedulerException {
-      String scheduleIdString = AbstractSchedulerService.scheduleIdFor(program, programType, scheduleName);
-      StreamSizeScheduleTask scheduleTask = scheduleTasks.get(scheduleIdString);
+    public synchronized void deleteSchedule(String taskName, ProgramId program, String scheduleName)
+      throws ScheduleNotFoundException, SchedulerException {
+      StreamSizeScheduleTask scheduleTask = scheduleTasks.get(taskName);
       if (scheduleTask == null) {
         throw new ScheduleNotFoundException(program.getParent().schedule(scheduleName));
       }
@@ -696,7 +707,7 @@ public class StreamSizeScheduler implements Scheduler {
 
       // The task is only removed from the map of scheduleTasks if deleting it from the persistent
       // store succeeded in the previous call
-      scheduleTasks.remove(scheduleIdString);
+      scheduleTasks.remove(taskName);
 
       if (scheduleTask.isActive()) {
         activeTasks.decrementAndGet();
@@ -926,6 +937,9 @@ public class StreamSizeScheduler implements Scheduler {
       }
 
       currentSchedule = streamSizeSchedule;
+      argsBuilder.put(ProgramOptionConstants.STREAM_NAME, currentSchedule.getStreamName());
+      argsBuilder.put(ProgramOptionConstants.DATA_TRIGGER_MB, Integer.toString(currentSchedule.getDataTriggerMB()));
+
       basePollSize = pollingInfo.getSize();
       basePollTs = pollingInfo.getTimestamp();
 

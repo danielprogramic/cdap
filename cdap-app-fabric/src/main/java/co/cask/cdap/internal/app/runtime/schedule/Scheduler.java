@@ -104,17 +104,6 @@ public interface Scheduler {
     throws SchedulerException;
 
   /**
-   * Delete all schedules associated with the given Program.
-   * Also deletes the associated job.
-   *
-   * @param programId Id of program that needs to be run.
-   * @param programType type of program that needs to be run.
-   * @throws SchedulerException on unforeseen error.
-   */
-  void deleteSchedules(ProgramId programId, SchedulableProgramType programType)
-    throws SchedulerException;
-
-  /**
    * Get state of a particular schedule.
    *
    * @param program the program for which the state of the schedule is queried

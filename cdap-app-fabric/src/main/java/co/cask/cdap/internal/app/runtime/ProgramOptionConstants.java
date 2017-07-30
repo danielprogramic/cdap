@@ -51,6 +51,10 @@ public final class ProgramOptionConstants {
 
   public static final String CRON_EXPRESSION = "cronExpression";
 
+  public static final String STREAM_NAME = "streamName";
+
+  public static final String DATA_TRIGGER_MB = "dataTriggerMB";
+
   public static final String EVENT_NOTIFICATIONS = "eventNotifications";
 
   public static final String RUN_DATA_SIZE = "runDataSize";

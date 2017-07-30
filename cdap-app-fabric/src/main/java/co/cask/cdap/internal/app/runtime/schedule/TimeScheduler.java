@@ -304,16 +304,6 @@ public final class TimeScheduler implements Scheduler {
   }
 
   @Override
-  public void deleteSchedules(ProgramId program, SchedulableProgramType programType)
-    throws SchedulerException {
-    try {
-      scheduler.deleteJob(jobKeyFor(program, programType));
-    } catch (org.quartz.SchedulerException e) {
-      throw new SchedulerException(e);
-    }
-  }
-
-  @Override
   public synchronized ProgramScheduleStatus scheduleState(ProgramId program, SchedulableProgramType programType,
                                                           String scheduleName)
     throws SchedulerException, ScheduleNotFoundException {
@@ -366,20 +356,20 @@ public final class TimeScheduler implements Scheduler {
    * @return Trigger keys in the map returned by {@link #getCronTriggerKeyMap(ProgramSchedule)}
    * @throws org.quartz.SchedulerException
    */
-  private synchronized Collection<TriggerKey> getGroupedTriggerKeys(ProgramSchedule schedule)
+  private Collection<TriggerKey> getGroupedTriggerKeys(ProgramSchedule schedule)
     throws org.quartz.SchedulerException {
     return getCronTriggerKeyMap(schedule).values();
   }
 
   /**
    * @return A Map with cron expression as keys and corresponding trigger key as values.
-   * Trigger keys are created from program, programType and scheduleName (and cron expression if the trigger
-   * in schedule is a composite trigger) and TimeScheuler#PAUSED_NEW_TRIGGERS_GROUP
+   * Trigger keys are created from program name, programType and scheduleName (and cron expression if the trigger
+   * in the schedule is a composite trigger) and TimeScheuler#PAUSED_NEW_TRIGGERS_GROUP
    * if it exists in this group else returns the {@link TriggerKey} prepared with null which gets it with
    * {@link Key#DEFAULT_GROUP}
    * @throws org.quartz.SchedulerException
    */
-  private synchronized Map<String, TriggerKey> getCronTriggerKeyMap(ProgramSchedule schedule)
+  private Map<String, TriggerKey> getCronTriggerKeyMap(ProgramSchedule schedule)
     throws org.quartz.SchedulerException {
     ProgramId program = schedule.getProgramId();
     SchedulableProgramType programType = program.getType().getSchedulableType();
@@ -390,7 +380,7 @@ public final class TimeScheduler implements Scheduler {
       for (SatisfiableTrigger timeTrigger :
         ((CompositeTrigger) trigger).getUnitTriggers().get(ProtoTrigger.Type.TIME)) {
         String cron = ((TimeTrigger) timeTrigger).getCronExpression();
-        String triggerName = AbstractSchedulerService.scheduleIdFor(program, programType, schedule.getName(), cron);
+        String triggerName = AbstractSchedulerService.getTriggerName(program, programType, schedule.getName(), cron);
         cronTriggerKeyMap.put(cron, triggerKeyForName(triggerName));
       }
       return cronTriggerKeyMap;
@@ -407,7 +397,7 @@ public final class TimeScheduler implements Scheduler {
    * {@link Key#DEFAULT_GROUP}
    * @throws org.quartz.SchedulerException
    */
-  private TriggerKey triggerKeyForName(String name) throws org.quartz.SchedulerException {
+  private synchronized TriggerKey triggerKeyForName(String name) throws org.quartz.SchedulerException {
     TriggerKey neverResumedTriggerKey = new TriggerKey(name, PAUSED_NEW_TRIGGERS_GROUP);
     if (scheduler.checkExists(neverResumedTriggerKey)) {
       return neverResumedTriggerKey;

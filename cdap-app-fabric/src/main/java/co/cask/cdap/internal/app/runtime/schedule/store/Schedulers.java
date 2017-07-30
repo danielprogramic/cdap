@@ -26,6 +26,8 @@ import co.cask.cdap.data2.dataset2.DatasetFramework;
 import co.cask.cdap.internal.app.runtime.schedule.ProgramSchedule;
 import co.cask.cdap.internal.app.runtime.schedule.constraint.ConcurrencyConstraint;
 import co.cask.cdap.internal.app.runtime.schedule.queue.JobQueueDataset;
+import co.cask.cdap.internal.app.runtime.schedule.trigger.CompositeTrigger;
+import co.cask.cdap.internal.app.runtime.schedule.trigger.SatisfiableTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.StreamSizeTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.TimeTrigger;
 import co.cask.cdap.internal.schedule.ScheduleCreationSpec;
@@ -34,6 +36,7 @@ import co.cask.cdap.internal.schedule.TimeSchedule;
 import co.cask.cdap.internal.schedule.constraint.Constraint;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.ProgramType;
+import co.cask.cdap.proto.ProtoTrigger;
 import co.cask.cdap.proto.ScheduleDetail;
 import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.DatasetId;
@@ -145,12 +148,6 @@ public class Schedulers {
         return input == null ? null : input.toScheduleDetail();
       }
     });
-  }
-
-  public static StreamSizeSchedule toStreamSizeSchedule(ProgramSchedule schedule) {
-    StreamSizeTrigger trigger = (StreamSizeTrigger) schedule.getTrigger();
-    return new StreamSizeSchedule(schedule.getName(), schedule.getDescription(),
-                                  trigger.getStreamId().getStream(), trigger.getTriggerMB());
   }
 
   public static void validateCronExpression(String cronExpression) {
