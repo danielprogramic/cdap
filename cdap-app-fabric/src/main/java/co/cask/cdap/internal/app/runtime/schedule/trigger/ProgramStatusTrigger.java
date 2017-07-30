@@ -59,4 +59,14 @@ public class ProgramStatusTrigger extends ProtoTrigger.ProgramStatusTrigger impl
   public List<String> getTriggerKeys() {
     return ImmutableList.of(programId.toString());
   }
+
+  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
+    if (protoTrigger instanceof ProtoTrigger.ProgramStatusTrigger) {
+      ProtoTrigger.ProgramStatusTrigger programStatusTrigger = (ProtoTrigger.ProgramStatusTrigger) protoTrigger;
+      return new co.cask.cdap.internal.app.runtime.schedule.trigger.ProgramStatusTrigger(
+        programStatusTrigger.getProgramId(), programStatusTrigger.getProgramStatuses());
+    }
+    throw new IllegalArgumentException(String.format("Trigger has type '%s' instead of type '%s",
+                                                     protoTrigger.getType().name(), Type.PROGRAM_STATUS.name()));
+  }
 }

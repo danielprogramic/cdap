@@ -68,4 +68,14 @@ public class StreamSizeTrigger extends ProtoTrigger.StreamSizeTrigger implements
   public List<String> getTriggerKeys() {
     return ImmutableList.of();
   }
+
+  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
+    if (protoTrigger instanceof ProtoTrigger.StreamSizeTrigger) {
+      ProtoTrigger.StreamSizeTrigger streamSizeTrigger = (ProtoTrigger.StreamSizeTrigger) protoTrigger;
+      return new co.cask.cdap.internal.app.runtime.schedule.trigger.StreamSizeTrigger(
+        streamSizeTrigger.getStreamId(), streamSizeTrigger.getTriggerMB());
+    }
+    throw new IllegalArgumentException(String.format("Trigger has type '%s' instead of type '%s",
+                                                     protoTrigger.getType().name(), Type.STREAM_SIZE.name()));
+  }
 }

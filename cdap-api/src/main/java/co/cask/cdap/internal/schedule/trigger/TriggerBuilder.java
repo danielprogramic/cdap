@@ -19,7 +19,7 @@ package co.cask.cdap.internal.schedule.trigger;
 /**
  * A builder to create a Trigger object.
  */
-public interface TriggerBuilder {
+public interface TriggerBuilder extends Trigger {
 
   /**
    * Builds a Trigger given the deployed namespace, application, and application version.

@@ -16,6 +16,8 @@
 
 package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
+import co.cask.cdap.internal.app.runtime.schedule.store.Schedulers;
+import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.Notification;
 import co.cask.cdap.proto.ProtoTrigger;
 
@@ -103,5 +105,22 @@ public abstract class CompositeTrigger extends ProtoTrigger.AbstractCompositeTri
    */
   public Map<Type, Set<SatisfiableTrigger>> getUnitTriggers() {
     return unitTriggers;
+  }
+
+  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger, Type type) {
+    if (protoTrigger instanceof ProtoTrigger.AbstractCompositeTrigger) {
+      ProtoTrigger.AbstractCompositeTrigger compositeTrigger = (ProtoTrigger.AbstractCompositeTrigger) protoTrigger;
+      Trigger[] internalTriggers = compositeTrigger.getTriggers();
+      SatisfiableTrigger[] satisfiableTriggers = new SatisfiableTrigger[internalTriggers.length];
+      for (int i = 0; i < internalTriggers.length; i++) {
+        satisfiableTriggers[i] = Schedulers.toSatisfiableTrigger((ProtoTrigger) internalTriggers[i]);
+      }
+      if (type.equals(Type.AND)) {
+        return new co.cask.cdap.internal.app.runtime.schedule.trigger.AndTrigger(satisfiableTriggers);
+      }
+      return new co.cask.cdap.internal.app.runtime.schedule.trigger.OrTrigger(satisfiableTriggers);
+    }
+    throw new IllegalArgumentException(String.format("Trigger has type '%s' instead of type '%s",
+                                                     protoTrigger.getType().name(), type.name()));
   }
 }

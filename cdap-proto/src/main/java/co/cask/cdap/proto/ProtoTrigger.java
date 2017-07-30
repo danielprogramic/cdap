@@ -18,10 +18,13 @@ package co.cask.cdap.proto;
 
 import co.cask.cdap.api.ProgramStatus;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
+import co.cask.cdap.internal.schedule.trigger.TriggerBuilder;
+import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
 
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -200,20 +203,44 @@ public abstract class ProtoTrigger implements Trigger {
   /**
    * Represents an AND trigger in REST requests/responses.
    */
-  public static class AndTrigger extends AbstractCompositeTrigger {
+  public static class AndTrigger extends AbstractCompositeTrigger implements TriggerBuilder{
 
     public AndTrigger(Trigger... triggers) {
       super(Type.AND, triggers);
+    }
+
+    @Override
+    public Trigger build(String namespace, String applicationName, String applicationVersion) {
+      int numTriggers = getTriggers().length;
+      Trigger[] builtTriggers = new Trigger[numTriggers];
+      for (int i = 0; i < numTriggers; i++) {
+        Trigger trigger = getTriggers()[i];
+        builtTriggers[i] = trigger instanceof TriggerBuilder ?
+          ((TriggerBuilder) trigger).build(namespace, applicationName, applicationVersion) : trigger;
+      }
+      return new AndTrigger(builtTriggers);
     }
   }
 
   /**
    * Represents an OR trigger in REST requests/responses.
    */
-  public static class OrTrigger extends AbstractCompositeTrigger {
+  public static class OrTrigger extends AbstractCompositeTrigger implements TriggerBuilder{
 
     public OrTrigger(Trigger... triggers) {
       super(Type.OR, triggers);
+    }
+
+    @Override
+    public Trigger build(String namespace, String applicationName, String applicationVersion) {
+      int numTriggers = getTriggers().length;
+      Trigger[] builtTriggers = new Trigger[numTriggers];
+      for (int i = 0; i < numTriggers; i++) {
+        Trigger trigger = getTriggers()[i];
+        builtTriggers[i] = trigger instanceof TriggerBuilder ?
+          ((TriggerBuilder) trigger).build(namespace, applicationName, applicationVersion) : trigger;
+      }
+      return new OrTrigger(builtTriggers);
     }
   }
 
@@ -322,6 +349,51 @@ public abstract class ProtoTrigger implements Trigger {
     public String toString() {
       return String.format("ProgramStatusTrigger(%s, %s)", getProgramId().getProgram(),
                                                            getProgramStatuses().toString());
+    }
+  }
+
+  /**
+   * A Trigger builder that builds a ProgramStatusTrigger.
+   */
+  public static class ProgramStatusTriggerBuilder implements TriggerBuilder {
+    private final String programNamespace;
+    private final String programApplication;
+    private final String programApplicationVersion;
+    private final ProgramType programType;
+    private final String programName;
+    private final EnumSet<ProgramStatus> programStatuses;
+
+    public ProgramStatusTriggerBuilder(@Nullable String programNamespace, @Nullable String programApplication,
+                                       @Nullable String programApplicationVersion, String programType,
+                                       String programName, ProgramStatus... programStatuses) {
+      this.programNamespace = programNamespace;
+      this.programApplication = programApplication;
+      this.programApplicationVersion = programApplicationVersion;
+      this.programType = ProgramType.valueOf(programType);
+      this.programName = programName;
+
+      // User can not specify any program statuses, or specify null, which is an array of length 1 containing null
+      if (programStatuses.length == 0 || (programStatuses.length == 1 && programStatuses[0] == null)) {
+        throw new IllegalArgumentException("Must set a program state for the triggering program");
+      }
+      this.programStatuses = EnumSet.of(programStatuses[0], programStatuses);
+    }
+
+    @Override
+    public ProgramStatusTrigger build(String namespace, String applicationName, String applicationVersion) {
+      // Inherit environment attributes from the deployed application
+      ProgramId programId = new ApplicationId(
+        firstNonNull(programNamespace, namespace),
+        firstNonNull(programApplication, applicationName),
+        firstNonNull(programApplicationVersion, applicationVersion)).program(programType, programName);
+      return new ProgramStatusTrigger(programId, programStatuses);
+    }
+
+    private String firstNonNull(@Nullable String first, String second) {
+      if (first != null) {
+        return first;
+      }
+      return second;
     }
   }
 

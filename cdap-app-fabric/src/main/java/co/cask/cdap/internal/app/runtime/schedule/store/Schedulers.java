@@ -26,7 +26,10 @@ import co.cask.cdap.data2.dataset2.DatasetFramework;
 import co.cask.cdap.internal.app.runtime.schedule.ProgramSchedule;
 import co.cask.cdap.internal.app.runtime.schedule.constraint.ConcurrencyConstraint;
 import co.cask.cdap.internal.app.runtime.schedule.queue.JobQueueDataset;
+import co.cask.cdap.internal.app.runtime.schedule.trigger.AndTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.CompositeTrigger;
+import co.cask.cdap.internal.app.runtime.schedule.trigger.PartitionTrigger;
+import co.cask.cdap.internal.app.runtime.schedule.trigger.ProgramStatusTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.SatisfiableTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.StreamSizeTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.TimeTrigger;
@@ -148,6 +151,30 @@ public class Schedulers {
         return input == null ? null : input.toScheduleDetail();
       }
     });
+  }
+
+  /**
+   * Convert a {@link ProtoTrigger} to a corresponding {@link SatisfiableTrigger}
+   */
+  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
+    switch (protoTrigger.getType()) {
+      case TIME:
+        return TimeTrigger.toSatisfiableTrigger(protoTrigger);
+      case PARTITION:
+        return PartitionTrigger.toSatisfiableTrigger(protoTrigger);
+      case STREAM_SIZE:
+        return StreamSizeTrigger.toSatisfiableTrigger(protoTrigger);
+      case PROGRAM_STATUS:
+        return ProgramStatusTrigger.toSatisfiableTrigger(protoTrigger);
+      case AND:
+        return CompositeTrigger.toSatisfiableTrigger(protoTrigger, ProtoTrigger.Type.AND);
+      case OR:
+        return CompositeTrigger.toSatisfiableTrigger(protoTrigger, ProtoTrigger.Type.OR);
+
+    }
+    // should never reach here
+    throw new IllegalArgumentException(String.format("Cannot convert ProtoTrigger of type '%s' to SatisfiableTrigger",
+                                                     protoTrigger.getType().name()));
   }
 
   public static void validateCronExpression(String cronExpression) {

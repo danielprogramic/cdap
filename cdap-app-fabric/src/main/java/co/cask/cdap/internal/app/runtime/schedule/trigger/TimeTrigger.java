@@ -69,4 +69,13 @@ public class TimeTrigger extends ProtoTrigger.TimeTrigger implements Trigger, Sa
   public List<String> getTriggerKeys() {
     return ImmutableList.of();
   }
+
+  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
+    if (protoTrigger instanceof ProtoTrigger.TimeTrigger) {
+      return new co.cask.cdap.internal.app.runtime.schedule.trigger.TimeTrigger(
+        ((ProtoTrigger.TimeTrigger) protoTrigger).getCronExpression());
+    }
+    throw new IllegalArgumentException(String.format("Trigger has type '%s' instead of type '%s",
+                                                     protoTrigger.getType().name(), Type.TIME.name()));
+  }
 }

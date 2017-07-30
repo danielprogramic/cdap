@@ -65,4 +65,14 @@ public class PartitionTrigger extends ProtoTrigger.PartitionTrigger implements T
   public List<String> getTriggerKeys() {
     return ImmutableList.of(Schedulers.triggerKeyForPartition(dataset));
   }
+
+  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
+    if (protoTrigger instanceof ProtoTrigger.PartitionTrigger) {
+      ProtoTrigger.PartitionTrigger partitionTrigger = (ProtoTrigger.PartitionTrigger) protoTrigger;
+      return new co.cask.cdap.internal.app.runtime.schedule.trigger.PartitionTrigger(
+        partitionTrigger.getDataset(), partitionTrigger.getNumPartitions());
+    }
+    throw new IllegalArgumentException(String.format("Trigger has type '%s' instead of type '%s",
+                                                     protoTrigger.getType().name(), Type.PARTITION.name()));
+  }
 }
