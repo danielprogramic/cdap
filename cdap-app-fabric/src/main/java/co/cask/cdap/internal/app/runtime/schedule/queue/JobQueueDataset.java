@@ -28,9 +28,7 @@ import co.cask.cdap.api.dataset.table.Table;
 import co.cask.cdap.internal.app.runtime.schedule.ProgramSchedule;
 import co.cask.cdap.internal.app.runtime.schedule.ProgramScheduleRecord;
 import co.cask.cdap.internal.app.runtime.schedule.constraint.ConstraintCodec;
-import co.cask.cdap.internal.app.runtime.schedule.trigger.PartitionTrigger;
-import co.cask.cdap.internal.app.runtime.schedule.trigger.StreamSizeTrigger;
-import co.cask.cdap.internal.app.runtime.schedule.trigger.TimeTrigger;
+import co.cask.cdap.internal.app.runtime.schedule.trigger.SatisfiableTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.TriggerCodec;
 import co.cask.cdap.internal.schedule.constraint.Constraint;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
@@ -151,10 +149,9 @@ public class JobQueueDataset extends AbstractDataset implements JobQueue {
     }
     // if no job exists for the scheduleId, add a new job with the first notification
     if (!jobExists) {
-      List<Notification> notifications = Collections.singletonList(notification);
-      Job.State jobState = isTriggerSatisfied(schedule.getTrigger(), notifications)
+      Job.State jobState = isTriggerSatisfied(schedule.getTrigger(), notification)
         ? Job.State.PENDING_CONSTRAINT : Job.State.PENDING_TRIGGER;
-      put(new SimpleJob(schedule, System.currentTimeMillis(), notifications, jobState,
+      put(new SimpleJob(schedule, System.currentTimeMillis(), Collections.singletonList(notification), jobState,
                         record.getMeta().getLastUpdated()));
     }
   }
@@ -164,7 +161,7 @@ public class JobQueueDataset extends AbstractDataset implements JobQueue {
     notifications.add(notification);
 
     Job.State newState = job.getState();
-    if (isTriggerSatisfied(job.getSchedule().getTrigger(), notifications)) {
+    if (isTriggerSatisfied(job.getSchedule().getTrigger(), notification)) {
       newState = Job.State.PENDING_CONSTRAINT;
       job.getState().checkTransition(newState);
     }
@@ -173,22 +170,13 @@ public class JobQueueDataset extends AbstractDataset implements JobQueue {
     put(newJob);
   }
 
-  private boolean isTriggerSatisfied(Trigger trigger, List<Notification> notifications) {
-    if (trigger instanceof TimeTrigger || trigger instanceof StreamSizeTrigger) {
-      // TimeTrigger/StreamSizeTrigger is satisfied as soon as the Notification arrive, due to how the Notification
-      // is initially created
-      return true;
+  private boolean isTriggerSatisfied(Trigger trigger, Notification notification) {
+    if (!(trigger instanceof SatisfiableTrigger)) {
+      // this shouldn't happen, since implementation of Trigger in ProgramSchedule should implement SatisfiableTrigger
+      throw new IllegalArgumentException("Implementation of Trigger in ProgramSchedule" +
+                                           " must implement SatisfiableTrigger");
     }
-    if (trigger instanceof PartitionTrigger) {
-      PartitionTrigger partitionTrigger = (PartitionTrigger) trigger;
-      int numPartitions = 0;
-      for (Notification notification : notifications) {
-        String numPartitionsString = notification.getProperties().get("numPartitions");
-        numPartitions += Integer.parseInt(numPartitionsString);
-      }
-      return numPartitions >= partitionTrigger.getNumPartitions();
-    }
-    throw new IllegalArgumentException("Unknown trigger class: " + trigger.getClass());
+    return ((SatisfiableTrigger) trigger).updateStatus(notification);
   }
 
   @Override

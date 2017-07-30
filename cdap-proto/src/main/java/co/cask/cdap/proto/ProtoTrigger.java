@@ -38,7 +38,23 @@ public abstract class ProtoTrigger implements Trigger {
     TIME,
     PARTITION,
     STREAM_SIZE,
-    PROGRAM_STATUS
+    PROGRAM_STATUS,
+    AND(true),
+    OR(true);
+
+    private final boolean isComposite;
+
+    Type() {
+      this.isComposite = false;
+    }
+
+    Type(boolean isComposite) {
+      this.isComposite = isComposite;
+    }
+
+    public boolean isComposite() {
+      return isComposite;
+    }
   }
 
   private final Type type;
@@ -142,6 +158,62 @@ public abstract class ProtoTrigger implements Trigger {
     @Override
     public String toString() {
       return String.format("PartitionTrigger(%s, %d partitions)", getDataset(), getNumPartitions());
+    }
+  }
+
+  /**
+   * Abstract base class for composite trigger in REST requests/responses.
+   */
+  public abstract static class AbstractCompositeTrigger extends ProtoTrigger {
+    private final Trigger[] triggers;
+
+    public AbstractCompositeTrigger(Type type, Trigger... triggers) {
+      super(type);
+      this.triggers = triggers;
+      validate();
+    }
+
+    public Trigger[] getTriggers() {
+      return triggers;
+    }
+
+    @Override
+    public void validate() {
+      if (!getType().isComposite()) {
+        throw new IllegalArgumentException("Trigger type " + getType().name() + " is not a composite trigger.");
+      }
+      Trigger[] internalTriggers = getTriggers();
+      ProtoTrigger.validateNotNull(internalTriggers, "internal trigger");
+      if (internalTriggers.length == 0) {
+        throw new IllegalArgumentException(String.format("Triggers passed in to construct a trigger " +
+                                                           "of type %s cannot be empty.", getType().name()));
+      }
+      for (Trigger trigger : internalTriggers) {
+        if (trigger == null) {
+          throw new IllegalArgumentException(String.format("Triggers passed in to construct a trigger " +
+                                                             "of type %s cannot contain null.", getType().name()));
+        }
+      }
+    }
+  }
+
+  /**
+   * Represents an AND trigger in REST requests/responses.
+   */
+  public static class AndTrigger extends AbstractCompositeTrigger {
+
+    public AndTrigger(Trigger... triggers) {
+      super(Type.AND, triggers);
+    }
+  }
+
+  /**
+   * Represents an OR trigger in REST requests/responses.
+   */
+  public static class OrTrigger extends AbstractCompositeTrigger {
+
+    public OrTrigger(Trigger... triggers) {
+      super(Type.OR, triggers);
     }
   }
 

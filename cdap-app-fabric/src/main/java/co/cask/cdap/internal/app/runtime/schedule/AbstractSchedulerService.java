@@ -153,20 +153,6 @@ public abstract class AbstractSchedulerService extends AbstractIdleService imple
   }
 
   @Override
-  public void suspendSchedule(ProgramId program, SchedulableProgramType programType, String scheduleName)
-    throws NotFoundException, SchedulerException {
-    Scheduler scheduler = getSchedulerForSchedule(program, scheduleName);
-    scheduler.suspendSchedule(program, programType, scheduleName);
-  }
-
-  @Override
-  public void resumeSchedule(ProgramId program, SchedulableProgramType programType, String scheduleName)
-    throws NotFoundException, SchedulerException {
-    Scheduler scheduler = getSchedulerForSchedule(program, scheduleName);
-    scheduler.resumeSchedule(program, programType, scheduleName);
-  }
-
-  @Override
   public void deleteSchedule(ProgramId program, SchedulableProgramType programType, String scheduleName)
     throws NotFoundException, SchedulerException {
     Scheduler scheduler = getSchedulerForSchedule(program, scheduleName);
@@ -208,6 +194,11 @@ public abstract class AbstractSchedulerService extends AbstractIdleService imple
 
   public static String scheduleIdFor(ProgramId program, SchedulableProgramType programType, String scheduleName) {
     return String.format("%s:%s", programIdFor(program, programType), scheduleName);
+  }
+
+  public static String scheduleIdFor(ProgramId program, SchedulableProgramType programType, String scheduleName,
+                                     String cronEntry) {
+    return String.format("%s:%s:%s", programIdFor(program, programType), scheduleName, cronEntry);
   }
 
   public static String programIdFor(ProgramId program, SchedulableProgramType programType) {

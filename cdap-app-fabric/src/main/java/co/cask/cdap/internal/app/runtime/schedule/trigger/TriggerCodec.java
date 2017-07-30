@@ -34,6 +34,8 @@ public class TriggerCodec extends ProtoTriggerCodec {
       .put(ProtoTrigger.Type.PARTITION, PartitionTrigger.class)
       .put(ProtoTrigger.Type.STREAM_SIZE, StreamSizeTrigger.class)
       .put(ProtoTrigger.Type.PROGRAM_STATUS, ProgramStatusTrigger.class)
+      .put(ProtoTrigger.Type.AND, AndTrigger.class)
+      .put(ProtoTrigger.Type.OR, OrTrigger.class)
       .build();
 
   public TriggerCodec() {

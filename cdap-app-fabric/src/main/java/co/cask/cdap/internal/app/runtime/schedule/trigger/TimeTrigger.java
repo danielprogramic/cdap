@@ -18,12 +18,16 @@ package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
 import co.cask.cdap.internal.app.runtime.schedule.store.Schedulers;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
+import co.cask.cdap.proto.Notification;
 import co.cask.cdap.proto.ProtoTrigger;
+import com.google.common.collect.ImmutableList;
+
+import java.util.List;
 
 /**
  * A Trigger that schedules a ProgramSchedule, based upon a particular cron expression.
  */
-public class TimeTrigger extends ProtoTrigger.TimeTrigger implements Trigger {
+public class TimeTrigger extends ProtoTrigger.TimeTrigger implements Trigger, SatisfiableTrigger {
 
   public TimeTrigger(String cronExpression) {
     super(cronExpression);
@@ -33,5 +37,15 @@ public class TimeTrigger extends ProtoTrigger.TimeTrigger implements Trigger {
   @Override
   public void validate() {
     Schedulers.validateCronExpression(cronExpression);
+  }
+
+  @Override
+  public boolean updateStatus(Notification notification) {
+    return true;
+  }
+
+  @Override
+  public List<String> getTriggerKeys() {
+    return ImmutableList.of();
   }
 }

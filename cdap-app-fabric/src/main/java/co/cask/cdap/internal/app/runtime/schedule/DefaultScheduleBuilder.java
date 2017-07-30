@@ -179,6 +179,12 @@ public class DefaultScheduleBuilder implements ConstraintProgramScheduleBuilder 
   }
 
   @Override
+  public ScheduleCreationSpec withTrigger(Trigger trigger) {
+
+    return null;
+  }
+
+  @Override
   public ScheduleBuilder waitUntilMet() {
     // user will only be able to call waitUntilMet right after they add a Constraint
     constraints.get(constraints.size() - 1).setWaitUntilMet(true);
