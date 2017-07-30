@@ -937,7 +937,8 @@ public class StreamSizeScheduler implements Scheduler {
       }
 
       currentSchedule = streamSizeSchedule;
-      argsBuilder.put(ProgramOptionConstants.STREAM_NAME, currentSchedule.getStreamName());
+      argsBuilder.put(ProgramOptionConstants.STREAM_ID, programId.getNamespaceId()
+        .stream(currentSchedule.getStreamName()).toString());
       argsBuilder.put(ProgramOptionConstants.DATA_TRIGGER_MB, Integer.toString(currentSchedule.getDataTriggerMB()));
 
       basePollSize = pollingInfo.getSize();

@@ -51,6 +51,11 @@ public class ProgramStatusTrigger extends ProtoTrigger.ProgramStatusTrigger impl
   }
 
   @Override
+  public boolean isSatisfied() {
+    return satisfied;
+  }
+
+  @Override
   public List<String> getTriggerKeys() {
     return ImmutableList.of(programId.toString());
   }

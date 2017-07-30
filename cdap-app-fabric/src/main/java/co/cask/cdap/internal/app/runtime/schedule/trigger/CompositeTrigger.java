@@ -16,6 +16,7 @@
 
 package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
+import co.cask.cdap.proto.Notification;
 import co.cask.cdap.proto.ProtoTrigger;
 
 import java.util.ArrayList;
@@ -31,7 +32,7 @@ import java.util.Set;
 public abstract class CompositeTrigger extends ProtoTrigger.AbstractCompositeTrigger
   implements SatisfiableTrigger {
   protected final SatisfiableTrigger[] triggers;
-  protected boolean isSatisfied;
+  protected boolean satisfied;
   // A map of non-composite trigger type and set of triggers of the same type
   private final Map<Type, Set<SatisfiableTrigger>> unitTriggers;
 
@@ -42,7 +43,6 @@ public abstract class CompositeTrigger extends ProtoTrigger.AbstractCompositeTri
     initializeUnitTriggers();
   }
 
-  // TODO: call this method in TriggerCodec
   private void initializeUnitTriggers() {
     for (SatisfiableTrigger trigger : triggers) {
       // Add current non-composite trigger to the corresponding set in the map
@@ -67,6 +67,25 @@ public abstract class CompositeTrigger extends ProtoTrigger.AbstractCompositeTri
         }
       }
     }
+  }
+
+  /**
+   * Only update the trigger's status with the notification if the trigger is not satisfied.
+   * Skip updating if the trigger is not composite trigger and the notification type is different from the trigger type.
+   */
+  void doUpdateStatus(SatisfiableTrigger trigger, Notification notification) {
+    if (!trigger.isSatisfied()) {
+      ProtoTrigger.Type type = ((ProtoTrigger) trigger).getType();
+      if (!type.isComposite() && !type.name().equals(notification.getNotificationType().name())) {
+        return;
+      }
+      trigger.updateStatus(notification);
+    }
+  }
+
+  @Override
+  public boolean isSatisfied() {
+    return satisfied;
   }
 
   @Override

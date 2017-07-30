@@ -17,6 +17,7 @@
 package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
 
+import co.cask.cdap.internal.app.runtime.schedule.store.Schedulers;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.Notification;
 import co.cask.cdap.proto.ProtoTrigger;
@@ -30,11 +31,13 @@ import java.util.List;
  */
 public class PartitionTrigger extends ProtoTrigger.PartitionTrigger implements Trigger, SatisfiableTrigger {
   private boolean satisfied;
-
   private int partitionsCount;
+
+  private final String datasetIdString;
 
   public PartitionTrigger(DatasetId dataset, int numPartitions) {
     super(dataset, numPartitions);
+    datasetIdString = dataset.toString();
   }
 
   @Override
@@ -42,7 +45,11 @@ public class PartitionTrigger extends ProtoTrigger.PartitionTrigger implements T
     if (satisfied) {
       return true;
     }
-    String numPartitionsString = notification.getProperties().get("numPartitions");
+    String datasetId = notification.getProperties().get(Notification.DATASET_ID);
+    if (!datasetIdString.equals(datasetId)) {
+      return false;
+    }
+    String numPartitionsString = notification.getProperties().get(Notification.NUM_PARTITIONS);
     if (numPartitionsString != null) {
       partitionsCount += Integer.parseInt(numPartitionsString);
     }
@@ -50,7 +57,12 @@ public class PartitionTrigger extends ProtoTrigger.PartitionTrigger implements T
   }
 
   @Override
+  public boolean isSatisfied() {
+    return satisfied;
+  }
+
+  @Override
   public List<String> getTriggerKeys() {
-    return ImmutableList.of(dataset.toString());
+    return ImmutableList.of(Schedulers.triggerKeyForPartition(dataset));
   }
 }

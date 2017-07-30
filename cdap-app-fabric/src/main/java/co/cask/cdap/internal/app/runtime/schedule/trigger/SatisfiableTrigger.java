@@ -36,6 +36,13 @@ public interface SatisfiableTrigger extends Trigger {
   boolean updateStatus(Notification notification);
 
   /**
+   * Checks whether this trigger is satisfied.
+   *
+   * @return {@code true} if this trigger is satisfied, {@code false} otherwise
+   */
+  boolean isSatisfied();
+
+  /**
    * Get all trigger keys which will be used to index the schedule containing this trigger, so that we can
    * do reverse lookup to get the schedule when events relevant to the trigger are received.
    *

@@ -29,16 +29,16 @@ public class AndTrigger extends CompositeTrigger implements SatisfiableTrigger {
 
   @Override
   public boolean updateStatus(Notification notification) {
-    if (isSatisfied) {
+    if (satisfied) {
       return true;
     }
     boolean satisfied = true;
     for (SatisfiableTrigger trigger : triggers) {
-      // Call isSatisfied on all triggers to update their status with the new notification
-      if (!trigger.updateStatus(notification) && satisfied) {
+      doUpdateStatus(trigger, notification);
+      if (!trigger.isSatisfied() && satisfied) {
         satisfied = false;
       }
     }
-    return isSatisfied = satisfied;
+    return this.satisfied = satisfied;
   }
 }

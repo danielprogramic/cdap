@@ -29,13 +29,13 @@ public class OrTrigger extends CompositeTrigger implements SatisfiableTrigger {
 
   @Override
   public boolean updateStatus(Notification notification) {
-    if (isSatisfied) {
+    if (satisfied) {
       return true;
     }
     for (SatisfiableTrigger trigger : triggers) {
-      // Call isSatisfied on all triggers to update their status with the new notification
-      if (trigger.updateStatus(notification)) {
-        return isSatisfied = true;
+      doUpdateStatus(trigger, notification);
+      if (trigger.isSatisfied()) {
+        return satisfied = true;
       }
     }
     return false;
