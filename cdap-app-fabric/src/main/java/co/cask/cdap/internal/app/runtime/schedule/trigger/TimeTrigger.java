@@ -71,7 +71,7 @@ public class TimeTrigger extends ProtoTrigger.TimeTrigger implements Trigger, Sa
     return ImmutableList.of();
   }
 
-  public static Trigger from(Trigger trigger) {
+  public static Trigger fromScheduleTrigger(ScheduleTrigger trigger) {
     if (trigger instanceof ScheduleTrigger.TimeTrigger) {
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.TimeTrigger(
         ((ScheduleTrigger.TimeTrigger) trigger).getCronExpression());

@@ -106,13 +106,13 @@ public abstract class CompositeTrigger extends ProtoTrigger.AbstractCompositeTri
     return unitTriggers;
   }
 
-  public static Trigger from(Trigger trigger, Type type) {
+  public static Trigger fromScheduleTrigger(Trigger trigger, Type type) {
     if (trigger instanceof ScheduleTrigger.AbstractCompositeTrigger) {
       ScheduleTrigger.AbstractCompositeTrigger compositeTrigger = (ScheduleTrigger.AbstractCompositeTrigger) trigger;
       Trigger[] internalTriggers = compositeTrigger.getTriggers();
       Trigger[] satisfiableTriggers = new Trigger[internalTriggers.length];
       for (int i = 0; i < internalTriggers.length; i++) {
-        satisfiableTriggers[i] = Schedulers.toSatisfiableTrigger(internalTriggers[i]);
+        satisfiableTriggers[i] = Schedulers.toSatisfiableTrigger((ScheduleTrigger) internalTriggers[i]);
       }
       if (type.equals(Type.AND)) {
         return new co.cask.cdap.internal.app.runtime.schedule.trigger.AndTrigger(satisfiableTriggers);

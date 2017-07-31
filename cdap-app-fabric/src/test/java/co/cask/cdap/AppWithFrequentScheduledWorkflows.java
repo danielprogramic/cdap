@@ -19,7 +19,6 @@ package co.cask.cdap;
 import co.cask.cdap.api.ProgramStatus;
 import co.cask.cdap.api.app.AbstractApplication;
 import co.cask.cdap.api.app.ProgramType;
-import co.cask.cdap.api.data.stream.Stream;
 import co.cask.cdap.api.workflow.AbstractWorkflow;
 import co.cask.cdap.internal.schedule.trigger.ScheduleTrigger;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
@@ -65,12 +64,12 @@ public class AppWithFrequentScheduledWorkflows extends AbstractApplication {
     // OrTrigger with only PartitionTrigger to be triggered
     Trigger orTrigger1 =
       ScheduleTrigger.or(new ScheduleTrigger.PartitionTriggerBuilder(DATASET_NAME2, 3),
-                      new ScheduleTrigger.ProgramStatusTriggerBuilder(null, null, null, ProgramType.WORKFLOW.toString(),
-                                                                   SCHEDULED_WORKFLOW_1, ProgramStatus.KILLED)
+                         new ScheduleTrigger.ProgramStatusTriggerBuilder(ProgramType.WORKFLOW.toString(),
+                                                                         SCHEDULED_WORKFLOW_1, ProgramStatus.KILLED)
       );
     // OrTrigger with only TimeTrigger to be triggered
     Trigger orTrigger2 = ScheduleTrigger.or(new ScheduleTrigger.TimeTrigger("*/9 * * * * ?"),
-                                         new ScheduleTrigger.StreamSizeTriggerBuilder(SOME_STREAM, 1));
+                                            new ScheduleTrigger.StreamSizeTriggerBuilder(SOME_STREAM, 1));
     schedule(buildSchedule(COMPOSITE_SCHEDULE, ProgramType.WORKFLOW, COMPOSITE_WORKFLOW)
                .withTrigger(ScheduleTrigger.and(orTrigger1, orTrigger2)));
   }

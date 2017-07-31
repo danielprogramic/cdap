@@ -64,8 +64,14 @@ public class ProgramStatusTrigger extends ProtoTrigger.ProgramStatusTrigger impl
     return ImmutableList.of(programId.toString());
   }
 
-  public static Trigger from(Trigger trigger) {
-    if (trigger instanceof ScheduleTrigger.ProgramStatusTrigger) {
+  /**
+   * Convert a given {@link ScheduleTrigger} to an instance of this class.
+   *
+   * @param trigger the {@link ScheduleTrigger} to be converted
+   * @return an instance of this class with the same information contained in the given trigger
+   */
+  public static Trigger fromScheduleTrigger(ScheduleTrigger trigger) {
+    if (trigger instanceof ScheduleTrigger.AbstractCompositeTrigger) {
       ScheduleTrigger.ProgramStatusTrigger programStatusTrigger = (ScheduleTrigger.ProgramStatusTrigger) trigger;
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.ProgramStatusTrigger(
         new ApplicationId(programStatusTrigger.getProgramNamespace(), programStatusTrigger.getProgramApplication(),

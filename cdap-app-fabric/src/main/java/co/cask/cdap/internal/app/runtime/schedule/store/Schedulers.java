@@ -154,27 +154,27 @@ public class Schedulers {
   }
 
   /**
-   * Convert a {@link Trigger} to the corresponding {@link SatisfiableTrigger}
+   * Convert a {@link ScheduleTrigger} to the corresponding {@link SatisfiableTrigger}
    */
-  public static Trigger toSatisfiableTrigger(Trigger trigger) {
-    switch (((ScheduleTrigger) trigger).getType()) {
+  public static Trigger toSatisfiableTrigger(ScheduleTrigger trigger) {
+    switch (trigger.getType()) {
       case TIME:
-        return TimeTrigger.from(trigger);
+        return TimeTrigger.fromScheduleTrigger(trigger);
       case PARTITION:
-        return PartitionTrigger.from(trigger);
+        return PartitionTrigger.fromScheduleTrigger(trigger);
       case STREAM_SIZE:
-        return StreamSizeTrigger.from(trigger);
+        return StreamSizeTrigger.fromScheduleTrigger(trigger);
       case PROGRAM_STATUS:
-        return ProgramStatusTrigger.from(trigger);
+        return ProgramStatusTrigger.fromScheduleTrigger(trigger);
       case AND:
-        return CompositeTrigger.from(trigger, ProtoTrigger.Type.AND);
+        return CompositeTrigger.fromScheduleTrigger(trigger, ProtoTrigger.Type.AND);
       case OR:
-        return CompositeTrigger.from(trigger, ProtoTrigger.Type.OR);
+        return CompositeTrigger.fromScheduleTrigger(trigger, ProtoTrigger.Type.OR);
 
     }
     // should never reach here
     throw new IllegalArgumentException(String.format("Cannot convert ProtoTrigger of type '%s' to SatisfiableTrigger",
-                                                     ((ProtoTrigger) trigger).getType().name()));
+                                                     trigger.getType().name()));
   }
 
   public static void validateCronExpression(String cronExpression) {

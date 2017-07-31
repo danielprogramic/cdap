@@ -49,7 +49,7 @@ import co.cask.cdap.gateway.handlers.ProgramLifecycleHttpHandler;
 import co.cask.cdap.internal.app.ServiceSpecificationCodec;
 import co.cask.cdap.internal.app.runtime.schedule.constraint.ConcurrencyConstraint;
 import co.cask.cdap.internal.app.runtime.schedule.store.Schedulers;
-import co.cask.cdap.internal.app.runtime.schedule.trigger.CompositeTrigger;
+import co.cask.cdap.internal.app.runtime.schedule.trigger.OrTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.PartitionTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.TimeTrigger;
 import co.cask.cdap.internal.app.services.http.AppFabricTestBase;
@@ -1253,39 +1253,40 @@ public class ProgramLifecycleHttpHandlerTest extends AppFabricTestBase {
     TimeSchedule timeSchedule = (TimeSchedule) Schedules.builder(scheduleName)
       .setDescription("Something")
       .createTimeSchedule("0 * * * ?");
-    ProtoTrigger.TimeTrigger timeTrigger = new ProtoTrigger.TimeTrigger("0 * * * ?");
-    ProtoTrigger.PartitionTrigger partitionTrigger =
+    ProtoTrigger.TimeTrigger protoTime = new ProtoTrigger.TimeTrigger("0 * * * ?");
+    ProtoTrigger.PartitionTrigger protoPartition =
       new ProtoTrigger.PartitionTrigger(NamespaceId.DEFAULT.dataset("data"), 5);
-    ProtoTrigger.OrTrigger orTrigger = new ProtoTrigger.OrTrigger(timeTrigger, partitionTrigger);
+    ProtoTrigger.OrTrigger protoOr = new ProtoTrigger.OrTrigger(protoTime, protoPartition);
     ScheduleProgramInfo programInfo = new ScheduleProgramInfo(SchedulableProgramType.WORKFLOW,
                                                               AppWithSchedule.WORKFLOW_NAME);
     ImmutableMap<String, String> properties = ImmutableMap.of("a", "b", "c", "d");
+    TimeTrigger timeTrigger = new TimeTrigger(timeSchedule.getCronEntry());
     ScheduleSpecification specification = new ScheduleSpecification(timeSchedule, programInfo, properties);
     ScheduleDetail timeDetail = new ScheduleDetail(scheduleName, specification.getSchedule().getDescription(),
                                                    specification.getProgram(), specification.getProperties(),
-                                                   new TimeTrigger(timeSchedule.getCronEntry()),
-                                                   Collections.<Constraint>emptyList(),
+                                                   timeTrigger, Collections.<Constraint>emptyList(),
                                                    Schedulers.JOB_QUEUE_TIMEOUT_MILLIS);
+    PartitionTrigger partitionTrigger =
+      new PartitionTrigger(protoPartition.getDataset(), protoPartition.getNumPartitions());
     ScheduleDetail expectedPartitionDetail =
       new ScheduleDetail(partitionScheduleName, specification.getSchedule().getDescription(),
-                         specification.getProgram(), specification.getProperties(),
-                         new PartitionTrigger(partitionTrigger.getDataset(), partitionTrigger.getNumPartitions()),
+                         specification.getProgram(), specification.getProperties(), partitionTrigger,
                          Collections.<Constraint>emptyList(), Schedulers.JOB_QUEUE_TIMEOUT_MILLIS);
 
     ScheduleDetail requestPartitionDetail =
       new ScheduleDetail(partitionScheduleName, specification.getSchedule().getDescription(),
-                         specification.getProgram(), specification.getProperties(), partitionTrigger,
+                         specification.getProgram(), specification.getProperties(), protoPartition,
                          Collections.<Constraint>emptyList(), Schedulers.JOB_QUEUE_TIMEOUT_MILLIS);
 
     ScheduleDetail expectedOrDetail =
       new ScheduleDetail(orScheduleName, specification.getSchedule().getDescription(),
                          specification.getProgram(), specification.getProperties(),
-                         CompositeTrigger.from(orTrigger, ProtoTrigger.Type.OR),
+                         new OrTrigger(timeTrigger, partitionTrigger),
                          Collections.<Constraint>emptyList(), Schedulers.JOB_QUEUE_TIMEOUT_MILLIS);
 
     ScheduleDetail requestOrDetail =
       new ScheduleDetail(orScheduleName, specification.getSchedule().getDescription(),
-                         specification.getProgram(), specification.getProperties(), orTrigger,
+                         specification.getProgram(), specification.getProperties(), protoOr,
                          Collections.<Constraint>emptyList(), Schedulers.JOB_QUEUE_TIMEOUT_MILLIS);
 
     // trying to add the schedule with different name in path param than schedule spec should fail
@@ -1299,7 +1300,7 @@ public class ProgramLifecycleHttpHandlerTest extends AppFabricTestBase {
     // adding a schedule to invalid type of program type should fail
     ScheduleDetail invalidScheduleDetail = new ScheduleDetail(
       scheduleName, "Something", new ScheduleProgramInfo(SchedulableProgramType.MAPREDUCE, AppWithSchedule.MAPREDUCE),
-      properties, timeTrigger, ImmutableList.<Constraint>of(), TimeUnit.MINUTES.toMillis(1));
+      properties, protoTime, ImmutableList.<Constraint>of(), TimeUnit.MINUTES.toMillis(1));
     response = addSchedule(TEST_NAMESPACE1, AppWithSchedule.NAME, null, scheduleName, invalidScheduleDetail);
     Assert.assertEquals(HttpResponseStatus.BAD_REQUEST.getCode(), response.getStatusLine().getStatusCode());
 

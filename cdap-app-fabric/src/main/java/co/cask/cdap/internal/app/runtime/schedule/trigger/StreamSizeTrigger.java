@@ -66,7 +66,7 @@ public class StreamSizeTrigger extends ProtoTrigger.StreamSizeTrigger implements
     return ImmutableList.of();
   }
 
-  public static Trigger from(Trigger trigger) {
+  public static Trigger fromScheduleTrigger(ScheduleTrigger trigger) {
     if (trigger instanceof ScheduleTrigger.StreamSizeTrigger) {
       ScheduleTrigger.StreamSizeTrigger streamSizeTrigger = (ScheduleTrigger.StreamSizeTrigger) trigger;
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.StreamSizeTrigger(

@@ -145,8 +145,8 @@ public class DefaultScheduleBuilder implements ConstraintProgramScheduleBuilder 
                                                      ProgramStatus... programStatuses) {
     return new ScheduleCreationSpec(name, description, programName, properties,
                                     new ProgramStatusTrigger(
-                                      new ApplicationId(application, appVersion)
-                                        .program(co.cask.cdap.proto.ProgramType.valueOf(programType.toString()),
+                                      new ApplicationId(programNamespace, application, appVersion)
+                                        .program(co.cask.cdap.proto.ProgramType.valueOf(programType.name()),
                                                  program),
                                       programStatuses),
                                     constraints, timeoutMillis);
@@ -156,10 +156,12 @@ public class DefaultScheduleBuilder implements ConstraintProgramScheduleBuilder 
   public ScheduleCreationSpec triggerOnProgramStatus(String programNamespace, String application,
                                                      ProgramType programType, String program,
                                                      ProgramStatus... programStatuses) {
-    return new ScheduleCreationBuilder(name, description, programName, properties, constraints, timeoutMillis,
-                                       new ProgramStatusTriggerBuilder(programNamespace, application, null,
-                                                                       programType.toString(), program,
-                                                                       programStatuses));
+    return new ScheduleCreationSpec(name, description, programName, properties,
+                                    new ProgramStatusTrigger(
+                                      new ApplicationId(programNamespace, application)
+                                        .program(co.cask.cdap.proto.ProgramType.valueOf(programType.name()), program),
+                                      programStatuses),
+                                    constraints, timeoutMillis);
   }
 
   @Override

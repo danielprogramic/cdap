@@ -17,6 +17,7 @@
 package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
 import co.cask.cdap.internal.app.runtime.schedule.store.Schedulers;
+import co.cask.cdap.internal.schedule.trigger.ScheduleTrigger;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.internal.schedule.trigger.TriggerBuilder;
 
@@ -25,17 +26,17 @@ import co.cask.cdap.internal.schedule.trigger.TriggerBuilder;
  */
 public class SatisfiableTriggerBuilder implements TriggerBuilder {
 
-  private final Trigger trigger;
+  private final ScheduleTrigger trigger;
 
-  public SatisfiableTriggerBuilder(Trigger trigger) {
+  public SatisfiableTriggerBuilder(ScheduleTrigger trigger) {
     this.trigger = trigger;
   }
 
   @Override
   public Trigger build(String namespace, String applicationName, String applicationVersion) {
     if (trigger instanceof TriggerBuilder) {
-      Trigger builtProtoTrigger = ((TriggerBuilder) trigger).build(namespace, applicationName, applicationVersion);
-      return Schedulers.toSatisfiableTrigger(builtProtoTrigger);
+      Trigger builtTrigger = ((TriggerBuilder) trigger).build(namespace, applicationName, applicationVersion);
+      return Schedulers.toSatisfiableTrigger((ScheduleTrigger) builtTrigger);
     }
     return Schedulers.toSatisfiableTrigger(trigger);
   }

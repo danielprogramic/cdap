@@ -329,7 +329,7 @@ public abstract class ScheduleTrigger implements Trigger {
       for (int i = 0; i < numTriggers; i++) {
         Trigger trigger = getTriggers()[i];
         builtTriggers[i] = trigger instanceof TriggerBuilder ?
-          ((TriggerBuilder) trigger).build(namespace, applicationName, applicationVersion) : trigger;
+          (ScheduleTrigger) ((TriggerBuilder) trigger).build(namespace, applicationName, applicationVersion) : trigger;
       }
       return new OrTrigger(builtTriggers);
     }
@@ -439,6 +439,15 @@ public abstract class ScheduleTrigger implements Trigger {
     private final String programName;
     protected final Set<ProgramStatus> programStatuses;
 
+    /**
+     * Create a ProgramStatusTrigger which is triggered when the given program in the given namespace
+     * and application with default version transitions to any one of the given program statuses.
+     */
+    public ProgramStatusTrigger(String programNamespace, String programApplication,
+                                ProgramType programType, String programName, Set<ProgramStatus> programStatuses) {
+      this(programNamespace, programApplication, "-SNAPSHOT", programType, programName, programStatuses);
+    }
+
     public ProgramStatusTrigger(String programNamespace, String programApplication, String programApplicationVersion,
                                 ProgramType programType, String programName, Set<ProgramStatus> programStatuses) {
       super(Type.PROGRAM_STATUS);
@@ -527,7 +536,24 @@ public abstract class ScheduleTrigger implements Trigger {
     private final String programName;
     private final EnumSet<ProgramStatus> programStatuses;
 
-    public ProgramStatusTriggerBuilder(@Nullable String programNamespace, @Nullable String programApplication,
+    /**
+     * Creates a builder with the given program in the given application and default version with the same namespace
+     * as the deployed app to be passed in from {@link #build(String, String, String)} method.
+     */
+    public ProgramStatusTriggerBuilder(String programApplication, String programType,
+                                       String programName, ProgramStatus... programStatuses) {
+      this(null, programApplication, "-SNAPSHOT", programType, programName, programStatuses);
+    }
+
+    /**
+     * Creates a builder with the given program with the same namespace, application name and application version
+     * as the deployed app to be passed in from {@link #build(String, String, String)} method.
+     */
+    public ProgramStatusTriggerBuilder(String programType, String programName, ProgramStatus... programStatuses) {
+      this(null, null, null, programType, programName, programStatuses);
+    }
+
+    private ProgramStatusTriggerBuilder(@Nullable String programNamespace, @Nullable String programApplication,
                                        @Nullable String programApplicationVersion, String programType,
                                        String programName, ProgramStatus... programStatuses) {
       this.programNamespace = programNamespace;

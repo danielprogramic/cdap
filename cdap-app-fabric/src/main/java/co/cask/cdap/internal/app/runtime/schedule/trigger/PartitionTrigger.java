@@ -64,7 +64,7 @@ public class PartitionTrigger extends ProtoTrigger.PartitionTrigger implements T
     return ImmutableList.of(Schedulers.triggerKeyForPartition(dataset));
   }
 
-  public static Trigger from(Trigger trigger) {
+  public static Trigger fromScheduleTrigger(ScheduleTrigger trigger) {
     if (trigger instanceof ScheduleTrigger.PartitionTrigger) {
       ScheduleTrigger.PartitionTrigger partitionTrigger = (ScheduleTrigger.PartitionTrigger) trigger;
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.PartitionTrigger(
