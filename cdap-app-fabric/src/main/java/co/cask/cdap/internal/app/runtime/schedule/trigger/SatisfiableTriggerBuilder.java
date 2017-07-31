@@ -19,25 +19,24 @@ package co.cask.cdap.internal.app.runtime.schedule.trigger;
 import co.cask.cdap.internal.app.runtime.schedule.store.Schedulers;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.internal.schedule.trigger.TriggerBuilder;
-import co.cask.cdap.proto.ProtoTrigger;
 
 /**
- * A Trigger builder that builds a {@link SatisfiableTrigger} from {@link ProtoTrigger}.
+ * A Trigger builder that builds a {@link SatisfiableTrigger} from the given Trigger.
  */
 public class SatisfiableTriggerBuilder implements TriggerBuilder {
 
-  private final ProtoTrigger protoTrigger;
+  private final Trigger trigger;
 
-  public SatisfiableTriggerBuilder(ProtoTrigger protoTrigger) {
-    this.protoTrigger = protoTrigger;
+  public SatisfiableTriggerBuilder(Trigger trigger) {
+    this.trigger = trigger;
   }
 
   @Override
   public Trigger build(String namespace, String applicationName, String applicationVersion) {
-    if (protoTrigger instanceof TriggerBuilder) {
-      Trigger builtProtoTrigger = ((TriggerBuilder) protoTrigger).build(namespace, applicationName, applicationVersion);
-      return Schedulers.toSatisfiableTrigger((ProtoTrigger) builtProtoTrigger);
+    if (trigger instanceof TriggerBuilder) {
+      Trigger builtProtoTrigger = ((TriggerBuilder) trigger).build(namespace, applicationName, applicationVersion);
+      return Schedulers.toSatisfiableTrigger(builtProtoTrigger);
     }
-    return Schedulers.toSatisfiableTrigger(protoTrigger);
+    return Schedulers.toSatisfiableTrigger(trigger);
   }
 }

@@ -17,6 +17,7 @@
 package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
 import co.cask.cdap.internal.app.runtime.schedule.store.Schedulers;
+import co.cask.cdap.internal.schedule.trigger.ScheduleTrigger;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.Notification;
 import co.cask.cdap.proto.ProtoTrigger;
@@ -105,20 +106,21 @@ public abstract class CompositeTrigger extends ProtoTrigger.AbstractCompositeTri
     return unitTriggers;
   }
 
-  public static Trigger from(ProtoTrigger protoTrigger, Type type) {
-    if (protoTrigger instanceof ProtoTrigger.AbstractCompositeTrigger) {
-      ProtoTrigger.AbstractCompositeTrigger compositeTrigger = (ProtoTrigger.AbstractCompositeTrigger) protoTrigger;
+  public static Trigger from(Trigger trigger, Type type) {
+    if (trigger instanceof ScheduleTrigger.AbstractCompositeTrigger) {
+      ScheduleTrigger.AbstractCompositeTrigger compositeTrigger = (ScheduleTrigger.AbstractCompositeTrigger) trigger;
       Trigger[] internalTriggers = compositeTrigger.getTriggers();
       Trigger[] satisfiableTriggers = new Trigger[internalTriggers.length];
       for (int i = 0; i < internalTriggers.length; i++) {
-        satisfiableTriggers[i] = Schedulers.toSatisfiableTrigger((ProtoTrigger) internalTriggers[i]);
+        satisfiableTriggers[i] = Schedulers.toSatisfiableTrigger(internalTriggers[i]);
       }
       if (type.equals(Type.AND)) {
         return new co.cask.cdap.internal.app.runtime.schedule.trigger.AndTrigger(satisfiableTriggers);
       }
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.OrTrigger(satisfiableTriggers);
     }
-    throw new IllegalArgumentException(String.format("Trigger has type '%s' instead of type '%s",
-                                                     protoTrigger.getType().name(), type.name()));
+    throw new IllegalArgumentException(String.format("Trigger of class '%s' is not an instance of '%s",
+                                                     trigger.getClass().getName(),
+                                                     ScheduleTrigger.AbstractCompositeTrigger.class.getName()));
   }
 }

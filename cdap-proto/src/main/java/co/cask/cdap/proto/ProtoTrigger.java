@@ -18,14 +18,11 @@ package co.cask.cdap.proto;
 
 import co.cask.cdap.api.ProgramStatus;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
-import co.cask.cdap.internal.schedule.trigger.TriggerBuilder;
-import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
 
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -178,33 +175,6 @@ public abstract class ProtoTrigger implements Trigger {
   }
 
   /**
-   * A Trigger builder that builds a {@link PartitionTriggerBuilder}.
-   */
-  public static class PartitionTriggerBuilder extends ProtoTrigger implements TriggerBuilder {
-    private final String datasetName;
-    private final int numPartitions;
-
-    public PartitionTriggerBuilder(String datasetName, int numPartitions) {
-      super(Type.PARTITION);
-      this.datasetName = datasetName;
-      this.numPartitions = numPartitions;
-      validate();
-    }
-
-    @Override
-    public void validate() {
-      ProtoTrigger.validateNotNull(datasetName, "dataset name");
-      ProtoTrigger.validateInRange(numPartitions, "number of partitions", 1, null);
-    }
-
-    @Override
-    public Trigger build(String namespace, String applicationName, String applicationVersion) {
-      return new PartitionTrigger(new DatasetId(namespace, datasetName),
-                                  numPartitions);
-    }
-  }
-
-  /**
    * Abstract base class for composite trigger in REST requests/responses.
    */
   public abstract static class AbstractCompositeTrigger extends ProtoTrigger {
@@ -241,7 +211,7 @@ public abstract class ProtoTrigger implements Trigger {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o){
+      if (this == o) {
         return true;
       }
       if (o == null || getClass() != o.getClass()) {
@@ -275,44 +245,18 @@ public abstract class ProtoTrigger implements Trigger {
   /**
    * Represents an AND trigger in REST requests/responses.
    */
-  public static class AndTrigger extends AbstractCompositeTrigger implements TriggerBuilder{
-
+  public static class AndTrigger extends AbstractCompositeTrigger {
     public AndTrigger(Trigger... triggers) {
       super(Type.AND, triggers);
-    }
-
-    @Override
-    public Trigger build(String namespace, String applicationName, String applicationVersion) {
-      int numTriggers = getTriggers().length;
-      Trigger[] builtTriggers = new Trigger[numTriggers];
-      for (int i = 0; i < numTriggers; i++) {
-        Trigger trigger = getTriggers()[i];
-        builtTriggers[i] = trigger instanceof TriggerBuilder ?
-          ((TriggerBuilder) trigger).build(namespace, applicationName, applicationVersion) : trigger;
-      }
-      return new AndTrigger(builtTriggers);
     }
   }
 
   /**
    * Represents an OR trigger in REST requests/responses.
    */
-  public static class OrTrigger extends AbstractCompositeTrigger implements TriggerBuilder{
-
+  public static class OrTrigger extends AbstractCompositeTrigger {
     public OrTrigger(Trigger... triggers) {
       super(Type.OR, triggers);
-    }
-
-    @Override
-    public Trigger build(String namespace, String applicationName, String applicationVersion) {
-      int numTriggers = getTriggers().length;
-      Trigger[] builtTriggers = new Trigger[numTriggers];
-      for (int i = 0; i < numTriggers; i++) {
-        Trigger trigger = getTriggers()[i];
-        builtTriggers[i] = trigger instanceof TriggerBuilder ?
-          ((TriggerBuilder) trigger).build(namespace, applicationName, applicationVersion) : trigger;
-      }
-      return new OrTrigger(builtTriggers);
     }
   }
 
@@ -422,51 +366,6 @@ public abstract class ProtoTrigger implements Trigger {
       return String.format("ProgramStatusTrigger(%s, %s)", getProgramId().getProgram(),
                                                            getProgramStatuses().toString());
     }
-  }
-
-  /**
-   * A Trigger builder that builds a {@link ProgramStatusTrigger}.
-   */
-  public static class ProgramStatusTriggerBuilder implements TriggerBuilder {
-    private final String programNamespace;
-    private final String programApplication;
-    private final String programApplicationVersion;
-    private final ProgramType programType;
-    private final String programName;
-    private final EnumSet<ProgramStatus> programStatuses;
-
-    public ProgramStatusTriggerBuilder(@Nullable String programNamespace, @Nullable String programApplication,
-                                       @Nullable String programApplicationVersion, String programType,
-                                       String programName, ProgramStatus... programStatuses) {
-      this.programNamespace = programNamespace;
-      this.programApplication = programApplication;
-      this.programApplicationVersion = programApplicationVersion;
-      this.programType = ProgramType.valueOf(programType);
-      this.programName = programName;
-
-      // User can not specify any program statuses, or specify null, which is an array of length 1 containing null
-      if (programStatuses.length == 0 || (programStatuses.length == 1 && programStatuses[0] == null)) {
-        throw new IllegalArgumentException("Must set a program state for the triggering program");
-      }
-      this.programStatuses = EnumSet.of(programStatuses[0], programStatuses);
-    }
-
-    @Override
-    public ProgramStatusTrigger build(String namespace, String applicationName, String applicationVersion) {
-      // Inherit environment attributes from the deployed application
-      ProgramId programId = new ApplicationId(
-        firstNonNull(programNamespace, namespace),
-        firstNonNull(programApplication, applicationName),
-        firstNonNull(programApplicationVersion, applicationVersion)).program(programType, programName);
-      return new ProgramStatusTrigger(programId, programStatuses);
-    }
-  }
-
-  private static String firstNonNull(@Nullable String first, String second) {
-    if (first != null) {
-      return first;
-    }
-    return second;
   }
 
   private static void validateNotNull(@Nullable Object o, String name) {

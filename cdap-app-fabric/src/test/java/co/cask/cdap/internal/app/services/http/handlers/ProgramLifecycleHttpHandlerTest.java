@@ -50,9 +50,7 @@ import co.cask.cdap.internal.app.ServiceSpecificationCodec;
 import co.cask.cdap.internal.app.runtime.schedule.constraint.ConcurrencyConstraint;
 import co.cask.cdap.internal.app.runtime.schedule.store.Schedulers;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.CompositeTrigger;
-import co.cask.cdap.internal.app.runtime.schedule.trigger.OrTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.PartitionTrigger;
-import co.cask.cdap.internal.app.runtime.schedule.trigger.StreamSizeTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.TimeTrigger;
 import co.cask.cdap.internal.app.services.http.AppFabricTestBase;
 import co.cask.cdap.internal.schedule.TimeSchedule;
@@ -75,7 +73,6 @@ import co.cask.cdap.proto.codec.WorkflowActionSpecificationCodec;
 import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
-import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.test.SlowTests;
 import co.cask.cdap.test.XSlowTests;
 import co.cask.common.http.HttpMethod;
@@ -1259,7 +1256,7 @@ public class ProgramLifecycleHttpHandlerTest extends AppFabricTestBase {
     ProtoTrigger.TimeTrigger timeTrigger = new ProtoTrigger.TimeTrigger("0 * * * ?");
     ProtoTrigger.PartitionTrigger partitionTrigger =
       new ProtoTrigger.PartitionTrigger(NamespaceId.DEFAULT.dataset("data"), 5);
-    ProtoTrigger.OrTrigger orTrigger = ProtoTrigger.or(timeTrigger, partitionTrigger);
+    ProtoTrigger.OrTrigger orTrigger = new ProtoTrigger.OrTrigger(timeTrigger, partitionTrigger);
     ScheduleProgramInfo programInfo = new ScheduleProgramInfo(SchedulableProgramType.WORKFLOW,
                                                               AppWithSchedule.WORKFLOW_NAME);
     ImmutableMap<String, String> properties = ImmutableMap.of("a", "b", "c", "d");

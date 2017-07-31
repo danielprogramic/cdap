@@ -26,7 +26,6 @@ import co.cask.cdap.data2.dataset2.DatasetFramework;
 import co.cask.cdap.internal.app.runtime.schedule.ProgramSchedule;
 import co.cask.cdap.internal.app.runtime.schedule.constraint.ConcurrencyConstraint;
 import co.cask.cdap.internal.app.runtime.schedule.queue.JobQueueDataset;
-import co.cask.cdap.internal.app.runtime.schedule.trigger.AndTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.CompositeTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.PartitionTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.ProgramStatusTrigger;
@@ -37,6 +36,7 @@ import co.cask.cdap.internal.schedule.ScheduleCreationSpec;
 import co.cask.cdap.internal.schedule.StreamSizeSchedule;
 import co.cask.cdap.internal.schedule.TimeSchedule;
 import co.cask.cdap.internal.schedule.constraint.Constraint;
+import co.cask.cdap.internal.schedule.trigger.ScheduleTrigger;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.ProtoTrigger;
@@ -154,27 +154,27 @@ public class Schedulers {
   }
 
   /**
-   * Convert a {@link ProtoTrigger} to a corresponding {@link SatisfiableTrigger}
+   * Convert a {@link Trigger} to the corresponding {@link SatisfiableTrigger}
    */
-  public static Trigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
-    switch (protoTrigger.getType()) {
+  public static Trigger toSatisfiableTrigger(Trigger trigger) {
+    switch (((ScheduleTrigger) trigger).getType()) {
       case TIME:
-        return TimeTrigger.from(protoTrigger);
+        return TimeTrigger.from(trigger);
       case PARTITION:
-        return PartitionTrigger.from(protoTrigger);
+        return PartitionTrigger.from(trigger);
       case STREAM_SIZE:
-        return StreamSizeTrigger.from(protoTrigger);
+        return StreamSizeTrigger.from(trigger);
       case PROGRAM_STATUS:
-        return ProgramStatusTrigger.from(protoTrigger);
+        return ProgramStatusTrigger.from(trigger);
       case AND:
-        return CompositeTrigger.from(protoTrigger, ProtoTrigger.Type.AND);
+        return CompositeTrigger.from(trigger, ProtoTrigger.Type.AND);
       case OR:
-        return CompositeTrigger.from(protoTrigger, ProtoTrigger.Type.OR);
+        return CompositeTrigger.from(trigger, ProtoTrigger.Type.OR);
 
     }
     // should never reach here
     throw new IllegalArgumentException(String.format("Cannot convert ProtoTrigger of type '%s' to SatisfiableTrigger",
-                                                     protoTrigger.getType().name()));
+                                                     ((ProtoTrigger) trigger).getType().name()));
   }
 
   public static void validateCronExpression(String cronExpression) {

@@ -18,6 +18,7 @@ package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
 import co.cask.cdap.internal.app.runtime.ProgramOptionConstants;
 import co.cask.cdap.internal.app.runtime.schedule.store.Schedulers;
+import co.cask.cdap.internal.schedule.trigger.ScheduleTrigger;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.Notification;
 import co.cask.cdap.proto.ProtoTrigger;
@@ -70,12 +71,13 @@ public class TimeTrigger extends ProtoTrigger.TimeTrigger implements Trigger, Sa
     return ImmutableList.of();
   }
 
-  public static Trigger from(ProtoTrigger protoTrigger) {
-    if (protoTrigger instanceof ProtoTrigger.TimeTrigger) {
+  public static Trigger from(Trigger trigger) {
+    if (trigger instanceof ScheduleTrigger.TimeTrigger) {
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.TimeTrigger(
-        ((ProtoTrigger.TimeTrigger) protoTrigger).getCronExpression());
+        ((ScheduleTrigger.TimeTrigger) trigger).getCronExpression());
     }
-    throw new IllegalArgumentException(String.format("Trigger has type '%s' instead of type '%s",
-                                                     protoTrigger.getType().name(), Type.TIME.name()));
+    throw new IllegalArgumentException(String.format("Trigger of class '%s' is not an instance of '%s",
+                                                     trigger.getClass().getName(),
+                                                     ScheduleTrigger.TimeTrigger.class.getName()));
   }
 }

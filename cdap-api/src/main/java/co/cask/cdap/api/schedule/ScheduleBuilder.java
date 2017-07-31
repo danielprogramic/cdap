@@ -19,6 +19,7 @@ package co.cask.cdap.api.schedule;
 import co.cask.cdap.api.ProgramStatus;
 import co.cask.cdap.api.app.ProgramType;
 import co.cask.cdap.internal.schedule.ScheduleCreationSpec;
+import co.cask.cdap.internal.schedule.trigger.ScheduleTrigger;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 
 import java.util.Map;
@@ -189,10 +190,10 @@ public interface ScheduleBuilder {
                                               ProgramStatus... programStatuses);
 
   /**
-   * Creates a schedule with a given trigger
+   * Creates a schedule with a given {@link ScheduleTrigger}
    *
    * @param trigger the trigger to be contained in the schedule
    * @return a {@link ScheduleCreationSpec}
    */
-  ScheduleCreationSpec withTrigger(Trigger trigger);
+  ScheduleCreationSpec withTrigger(ScheduleTrigger trigger);
 }

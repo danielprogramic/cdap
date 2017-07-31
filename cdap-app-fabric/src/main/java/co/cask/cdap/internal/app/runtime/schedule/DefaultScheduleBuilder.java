@@ -32,10 +32,10 @@ import co.cask.cdap.internal.app.runtime.schedule.trigger.SatisfiableTriggerBuil
 import co.cask.cdap.internal.app.runtime.schedule.trigger.TimeTrigger;
 import co.cask.cdap.internal.schedule.ScheduleCreationSpec;
 import co.cask.cdap.internal.schedule.constraint.Constraint;
+import co.cask.cdap.internal.schedule.trigger.ScheduleTrigger;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.internal.schedule.trigger.TriggerBuilder;
 import co.cask.cdap.proto.ProtoConstraint;
-import co.cask.cdap.proto.ProtoTrigger;
 import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.NamespaceId;
@@ -181,9 +181,9 @@ public class DefaultScheduleBuilder implements ConstraintProgramScheduleBuilder 
   }
 
   @Override
-  public ScheduleCreationSpec withTrigger(Trigger trigger) {
+  public ScheduleCreationSpec withTrigger(ScheduleTrigger trigger) {
     return new ScheduleCreationBuilder(name, description, programName, properties, constraints, timeoutMillis,
-                                       new SatisfiableTriggerBuilder((ProtoTrigger) trigger));
+                                       new SatisfiableTriggerBuilder(trigger));
   }
 
   @Override

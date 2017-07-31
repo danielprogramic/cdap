@@ -17,6 +17,7 @@
 package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
 import co.cask.cdap.internal.app.runtime.ProgramOptionConstants;
+import co.cask.cdap.internal.schedule.trigger.ScheduleTrigger;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.Notification;
 import co.cask.cdap.proto.ProtoTrigger;
@@ -65,13 +66,15 @@ public class StreamSizeTrigger extends ProtoTrigger.StreamSizeTrigger implements
     return ImmutableList.of();
   }
 
-  public static Trigger from(ProtoTrigger protoTrigger) {
-    if (protoTrigger instanceof ProtoTrigger.StreamSizeTrigger) {
-      ProtoTrigger.StreamSizeTrigger streamSizeTrigger = (ProtoTrigger.StreamSizeTrigger) protoTrigger;
+  public static Trigger from(Trigger trigger) {
+    if (trigger instanceof ScheduleTrigger.StreamSizeTrigger) {
+      ScheduleTrigger.StreamSizeTrigger streamSizeTrigger = (ScheduleTrigger.StreamSizeTrigger) trigger;
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.StreamSizeTrigger(
-        streamSizeTrigger.getStreamId(), streamSizeTrigger.getTriggerMB());
+        new StreamId(streamSizeTrigger.getStreamNamespace(), streamSizeTrigger.getStreamName()),
+        streamSizeTrigger.getTriggerMB());
     }
-    throw new IllegalArgumentException(String.format("Trigger has type '%s' instead of type '%s",
-                                                     protoTrigger.getType().name(), Type.STREAM_SIZE.name()));
+    throw new IllegalArgumentException(String.format("Trigger of class '%s' is not an instance of '%s",
+                                                     trigger.getClass().getName(),
+                                                     ScheduleTrigger.StreamSizeTrigger.class.getName()));
   }
 }

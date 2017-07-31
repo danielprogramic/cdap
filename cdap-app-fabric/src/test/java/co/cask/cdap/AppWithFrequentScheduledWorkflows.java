@@ -16,13 +16,17 @@
 
 package co.cask.cdap;
 
+import co.cask.cdap.api.ProgramStatus;
 import co.cask.cdap.api.app.AbstractApplication;
 import co.cask.cdap.api.app.ProgramType;
+import co.cask.cdap.api.data.stream.Stream;
 import co.cask.cdap.api.workflow.AbstractWorkflow;
-import co.cask.cdap.proto.ProtoTrigger;
+import co.cask.cdap.internal.schedule.trigger.ScheduleTrigger;
+import co.cask.cdap.internal.schedule.trigger.Trigger;
 
 public class AppWithFrequentScheduledWorkflows extends AbstractApplication {
   public static final String NAME = "AppWithFrequentScheduledWorkflows";
+  public static final String SOME_STREAM = "SomeStream";
   public static final String SOME_WORKFLOW = "SomeWorkflow";
   public static final String ANOTHER_WORKFLOW = "AnotherWorkflow";
   public static final String DATASET_PARTITION_SCHEDULE_1 = "DataSetPartionSchedule1";
@@ -42,6 +46,7 @@ public class AppWithFrequentScheduledWorkflows extends AbstractApplication {
   public void configure() {
     setName(NAME);
     setDescription("Sample application with multiple Workflows");
+    addStream(SOME_STREAM);
     addWorkflow(new DummyWorkflow(SOME_WORKFLOW));
     addWorkflow(new DummyWorkflow(ANOTHER_WORKFLOW));
     addWorkflow(new DummyWorkflow(SCHEDULED_WORKFLOW_1));
@@ -57,9 +62,17 @@ public class AppWithFrequentScheduledWorkflows extends AbstractApplication {
     // Schedule the workflow to run in every ten seconds
     schedule(buildSchedule(TEN_SECOND_SCHEDULE_2, ProgramType.WORKFLOW, SCHEDULED_WORKFLOW_2)
                .triggerByTime("*/10 * * * * ?"));
-    ProtoTrigger.OrTrigger orTrigger1 = ProtoTrigger.or(new ProtoTrigger.PartitionTriggerBuilder(DATASET_NAME1, 1), );
+    // OrTrigger with only PartitionTrigger to be triggered
+    Trigger orTrigger1 =
+      ScheduleTrigger.or(new ScheduleTrigger.PartitionTriggerBuilder(DATASET_NAME2, 3),
+                      new ScheduleTrigger.ProgramStatusTriggerBuilder(null, null, null, ProgramType.WORKFLOW.toString(),
+                                                                   SCHEDULED_WORKFLOW_1, ProgramStatus.KILLED)
+      );
+    // OrTrigger with only TimeTrigger to be triggered
+    Trigger orTrigger2 = ScheduleTrigger.or(new ScheduleTrigger.TimeTrigger("*/9 * * * * ?"),
+                                         new ScheduleTrigger.StreamSizeTriggerBuilder(SOME_STREAM, 1));
     schedule(buildSchedule(COMPOSITE_SCHEDULE, ProgramType.WORKFLOW, COMPOSITE_WORKFLOW)
-               .withTrigger(ProtoTrigger.and()));
+               .withTrigger(ScheduleTrigger.and(orTrigger1, orTrigger2)));
   }
 
   /**

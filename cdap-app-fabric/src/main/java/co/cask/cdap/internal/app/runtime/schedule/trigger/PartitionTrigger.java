@@ -18,6 +18,7 @@ package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
 
 import co.cask.cdap.internal.app.runtime.schedule.store.Schedulers;
+import co.cask.cdap.internal.schedule.trigger.ScheduleTrigger;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.Notification;
 import co.cask.cdap.proto.ProtoTrigger;
@@ -63,13 +64,15 @@ public class PartitionTrigger extends ProtoTrigger.PartitionTrigger implements T
     return ImmutableList.of(Schedulers.triggerKeyForPartition(dataset));
   }
 
-  public static Trigger from(ProtoTrigger protoTrigger) {
-    if (protoTrigger instanceof ProtoTrigger.PartitionTrigger) {
-      ProtoTrigger.PartitionTrigger partitionTrigger = (ProtoTrigger.PartitionTrigger) protoTrigger;
+  public static Trigger from(Trigger trigger) {
+    if (trigger instanceof ScheduleTrigger.PartitionTrigger) {
+      ScheduleTrigger.PartitionTrigger partitionTrigger = (ScheduleTrigger.PartitionTrigger) trigger;
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.PartitionTrigger(
-        partitionTrigger.getDataset(), partitionTrigger.getNumPartitions());
+        new DatasetId(partitionTrigger.getDatasetNamespace(), partitionTrigger.getDatasetName()),
+        partitionTrigger.getNumPartitions());
     }
-    throw new IllegalArgumentException(String.format("Trigger has type '%s' instead of type '%s",
-                                                     protoTrigger.getType().name(), Type.PARTITION.name()));
+    throw new IllegalArgumentException(String.format("Trigger of class '%s' is not an instance of '%s",
+                                                     trigger.getClass().getName(),
+                                                     ScheduleTrigger.PartitionTrigger.class.getName()));
   }
 }

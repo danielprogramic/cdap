@@ -18,9 +18,12 @@ package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
 
 import co.cask.cdap.api.ProgramStatus;
+import co.cask.cdap.internal.schedule.trigger.ScheduleTrigger;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.Notification;
+import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.ProtoTrigger;
+import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.ProgramId;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -61,13 +64,17 @@ public class ProgramStatusTrigger extends ProtoTrigger.ProgramStatusTrigger impl
     return ImmutableList.of(programId.toString());
   }
 
-  public static Trigger from(ProtoTrigger protoTrigger) {
-    if (protoTrigger instanceof ProtoTrigger.ProgramStatusTrigger) {
-      ProtoTrigger.ProgramStatusTrigger programStatusTrigger = (ProtoTrigger.ProgramStatusTrigger) protoTrigger;
+  public static Trigger from(Trigger trigger) {
+    if (trigger instanceof ScheduleTrigger.ProgramStatusTrigger) {
+      ScheduleTrigger.ProgramStatusTrigger programStatusTrigger = (ScheduleTrigger.ProgramStatusTrigger) trigger;
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.ProgramStatusTrigger(
-        programStatusTrigger.getProgramId(), programStatusTrigger.getProgramStatuses());
+        new ApplicationId(programStatusTrigger.getProgramNamespace(), programStatusTrigger.getProgramApplication(),
+                          programStatusTrigger.getProgramApplicationVersion())
+          .program(ProgramType.valueOf(programStatusTrigger.getProgramType().name()),
+                   programStatusTrigger.getProgramName()), programStatusTrigger.getProgramStatuses());
     }
-    throw new IllegalArgumentException(String.format("Trigger has type '%s' instead of type '%s",
-                                                     protoTrigger.getType().name(), Type.PROGRAM_STATUS.name()));
+    throw new IllegalArgumentException(String.format("Trigger of class '%s' is not an instance of '%s",
+                                                     trigger.getClass().getName(),
+                                                     ScheduleTrigger.ProgramStatusTrigger.class.getName()));
   }
 }
