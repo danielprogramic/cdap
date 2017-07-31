@@ -24,6 +24,7 @@ import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
 
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
@@ -38,25 +39,37 @@ public abstract class ProtoTrigger implements Trigger {
    * Represents all known trigger types in REST requests/responses.
    */
   public enum Type {
-    TIME,
-    PARTITION,
-    STREAM_SIZE,
-    PROGRAM_STATUS,
-    AND(true),
-    OR(true);
+    // Time trigger is satisfied upon receiving a notification triggering its schedule
+    TIME(false, true),
+    // Stream size trigger is satisfied upon receiving a notification triggering its schedule
+    STREAM_SIZE(false, true),
+    PARTITION(false, false),
+    PROGRAM_STATUS(false, false),
+    AND(true, false),
+    OR(true, false);
 
     private final boolean isComposite;
 
-    Type() {
-      this.isComposite = false;
-    }
+    private final boolean isImmediatelySatisfied;
 
-    Type(boolean isComposite) {
+    Type(boolean isComposite, boolean isImmediatelySatisfied) {
       this.isComposite = isComposite;
+      this.isImmediatelySatisfied = isImmediatelySatisfied;
     }
 
+    /**
+     * Whether the type trigger is a composite, i.e. a trigger that can contains multiple triggers internally.
+     */
     public boolean isComposite() {
       return isComposite;
+    }
+
+    /**
+     * Whether the type of trigger is satisfied immediately when a notification is received to trigger
+     * the schedule directly containing (not inside a composite trigger) the trigger
+     */
+    public boolean isImmediatelySatisfied() {
+      return isImmediatelySatisfied;
     }
   }
 
@@ -165,10 +178,37 @@ public abstract class ProtoTrigger implements Trigger {
   }
 
   /**
+   * A Trigger builder that builds a {@link PartitionTriggerBuilder}.
+   */
+  public static class PartitionTriggerBuilder extends ProtoTrigger implements TriggerBuilder {
+    private final String datasetName;
+    private final int numPartitions;
+
+    public PartitionTriggerBuilder(String datasetName, int numPartitions) {
+      super(Type.PARTITION);
+      this.datasetName = datasetName;
+      this.numPartitions = numPartitions;
+      validate();
+    }
+
+    @Override
+    public void validate() {
+      ProtoTrigger.validateNotNull(datasetName, "dataset name");
+      ProtoTrigger.validateInRange(numPartitions, "number of partitions", 1, null);
+    }
+
+    @Override
+    public Trigger build(String namespace, String applicationName, String applicationVersion) {
+      return new PartitionTrigger(new DatasetId(namespace, datasetName),
+                                  numPartitions);
+    }
+  }
+
+  /**
    * Abstract base class for composite trigger in REST requests/responses.
    */
   public abstract static class AbstractCompositeTrigger extends ProtoTrigger {
-    private final Trigger[] triggers;
+    protected final Trigger[] triggers;
 
     public AbstractCompositeTrigger(Type type, Trigger... triggers) {
       super(type);
@@ -198,6 +238,38 @@ public abstract class ProtoTrigger implements Trigger {
         }
       }
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o){
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      AbstractCompositeTrigger that = (AbstractCompositeTrigger) o;
+      return Arrays.equals(triggers, that.triggers);
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(triggers);
+    }
+  }
+
+  /**
+   * Shorthand helper method to create an instance of {@link AndTrigger}
+   */
+  public static AndTrigger and(Trigger... triggers) {
+    return new AndTrigger(triggers);
+  }
+
+  /**
+   * Shorthand helper method to create an instance of {@link OrTrigger}
+   */
+  public static OrTrigger or(Trigger... triggers) {
+    return new OrTrigger(triggers);
   }
 
   /**
@@ -353,7 +425,7 @@ public abstract class ProtoTrigger implements Trigger {
   }
 
   /**
-   * A Trigger builder that builds a ProgramStatusTrigger.
+   * A Trigger builder that builds a {@link ProgramStatusTrigger}.
    */
   public static class ProgramStatusTriggerBuilder implements TriggerBuilder {
     private final String programNamespace;
@@ -388,13 +460,13 @@ public abstract class ProtoTrigger implements Trigger {
         firstNonNull(programApplicationVersion, applicationVersion)).program(programType, programName);
       return new ProgramStatusTrigger(programId, programStatuses);
     }
+  }
 
-    private String firstNonNull(@Nullable String first, String second) {
-      if (first != null) {
-        return first;
-      }
-      return second;
+  private static String firstNonNull(@Nullable String first, String second) {
+    if (first != null) {
+      return first;
     }
+    return second;
   }
 
   private static void validateNotNull(@Nullable Object o, String name) {

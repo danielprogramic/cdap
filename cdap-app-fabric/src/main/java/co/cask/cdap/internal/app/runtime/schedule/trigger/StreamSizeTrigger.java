@@ -36,13 +36,9 @@ public class StreamSizeTrigger extends ProtoTrigger.StreamSizeTrigger implements
   private static final java.lang.reflect.Type STRING_STRING_MAP = new TypeToken<Map<String, String>>() { }.getType();
 
   private boolean satisfied;
-  private final String streamIdString;
-  private final String triggerMBString;
 
   public StreamSizeTrigger(StreamId streamId, int triggerMB) {
     super(streamId, triggerMB);
-    this.streamIdString = streamId.toString();
-    this.triggerMBString = Integer.toString(triggerMB);
   }
 
   @Override
@@ -53,8 +49,8 @@ public class StreamSizeTrigger extends ProtoTrigger.StreamSizeTrigger implements
     String systemOverridesString = notification.getProperties().get(ProgramOptionConstants.SYSTEM_OVERRIDES);
     if (systemOverridesString != null) {
       Map<String, String> systemOverrides = GSON.fromJson(systemOverridesString, STRING_STRING_MAP);
-      return satisfied = streamIdString.equals(systemOverrides.get(ProgramOptionConstants.STREAM_ID))
-        && triggerMBString.equals(systemOverrides.get(ProgramOptionConstants.DATA_TRIGGER_MB));
+      return satisfied = streamId.toString().equals(systemOverrides.get(ProgramOptionConstants.STREAM_ID))
+        && Integer.toString(triggerMB).equals(systemOverrides.get(ProgramOptionConstants.DATA_TRIGGER_MB));
     }
     return false;
   }
@@ -69,7 +65,7 @@ public class StreamSizeTrigger extends ProtoTrigger.StreamSizeTrigger implements
     return ImmutableList.of();
   }
 
-  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
+  public static Trigger from(ProtoTrigger protoTrigger) {
     if (protoTrigger instanceof ProtoTrigger.StreamSizeTrigger) {
       ProtoTrigger.StreamSizeTrigger streamSizeTrigger = (ProtoTrigger.StreamSizeTrigger) protoTrigger;
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.StreamSizeTrigger(

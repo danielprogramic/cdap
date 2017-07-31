@@ -19,6 +19,7 @@ package co.cask.cdap;
 import co.cask.cdap.api.app.AbstractApplication;
 import co.cask.cdap.api.app.ProgramType;
 import co.cask.cdap.api.workflow.AbstractWorkflow;
+import co.cask.cdap.proto.ProtoTrigger;
 
 public class AppWithFrequentScheduledWorkflows extends AbstractApplication {
   public static final String NAME = "AppWithFrequentScheduledWorkflows";
@@ -30,8 +31,11 @@ public class AppWithFrequentScheduledWorkflows extends AbstractApplication {
   public static final String DATASET_NAME2 = "AnotherDataset";
   public static final String TEN_SECOND_SCHEDULE_1 = "TenSecSchedule1";
   public static final String TEN_SECOND_SCHEDULE_2 = "TenSecSchedule2";
+  public static final String COMPOSITE_SCHEDULE = "CompositeSchedule";
   public static final String SCHEDULED_WORKFLOW_1 = "ScheduledWorkflow1";
   public static final String SCHEDULED_WORKFLOW_2 = "ScheduledWorkflow2";
+  public static final String COMPOSITE_WORKFLOW = "CompositeWorkflow";
+
 
 
   @Override
@@ -42,6 +46,7 @@ public class AppWithFrequentScheduledWorkflows extends AbstractApplication {
     addWorkflow(new DummyWorkflow(ANOTHER_WORKFLOW));
     addWorkflow(new DummyWorkflow(SCHEDULED_WORKFLOW_1));
     addWorkflow(new DummyWorkflow(SCHEDULED_WORKFLOW_2));
+    addWorkflow(new DummyWorkflow(COMPOSITE_WORKFLOW));
     schedule(buildSchedule(DATASET_PARTITION_SCHEDULE_1, ProgramType.WORKFLOW, SOME_WORKFLOW)
                .triggerOnPartitions(DATASET_NAME1, 1));
     schedule(buildSchedule(DATASET_PARTITION_SCHEDULE_2, ProgramType.WORKFLOW, ANOTHER_WORKFLOW)
@@ -52,6 +57,9 @@ public class AppWithFrequentScheduledWorkflows extends AbstractApplication {
     // Schedule the workflow to run in every ten seconds
     schedule(buildSchedule(TEN_SECOND_SCHEDULE_2, ProgramType.WORKFLOW, SCHEDULED_WORKFLOW_2)
                .triggerByTime("*/10 * * * * ?"));
+    ProtoTrigger.OrTrigger orTrigger1 = ProtoTrigger.or(new ProtoTrigger.PartitionTriggerBuilder(DATASET_NAME1, 1), );
+    schedule(buildSchedule(COMPOSITE_SCHEDULE, ProgramType.WORKFLOW, COMPOSITE_WORKFLOW)
+               .withTrigger(ProtoTrigger.and()));
   }
 
   /**

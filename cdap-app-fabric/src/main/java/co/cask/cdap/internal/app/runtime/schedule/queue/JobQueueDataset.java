@@ -33,6 +33,7 @@ import co.cask.cdap.internal.app.runtime.schedule.trigger.TriggerCodec;
 import co.cask.cdap.internal.schedule.constraint.Constraint;
 import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.Notification;
+import co.cask.cdap.proto.ProtoTrigger;
 import co.cask.cdap.proto.id.ScheduleId;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
@@ -175,6 +176,11 @@ public class JobQueueDataset extends AbstractDataset implements JobQueue {
       // this shouldn't happen, since implementation of Trigger in ProgramSchedule should implement SatisfiableTrigger
       throw new IllegalArgumentException("Implementation of Trigger in ProgramSchedule" +
                                            " must implement SatisfiableTrigger");
+    }
+    if (((ProtoTrigger) trigger).getType().isImmediatelySatisfied()) {
+      // No need to call updateStatus if the trigger is immediately satisfied
+      // when receiving a notification triggering the schedule
+      return true;
     }
     return ((SatisfiableTrigger) trigger).updateStatus(notification);
   }

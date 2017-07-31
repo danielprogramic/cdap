@@ -33,11 +33,8 @@ public class PartitionTrigger extends ProtoTrigger.PartitionTrigger implements T
   private boolean satisfied;
   private int partitionsCount;
 
-  private final String datasetIdString;
-
   public PartitionTrigger(DatasetId dataset, int numPartitions) {
     super(dataset, numPartitions);
-    datasetIdString = dataset.toString();
   }
 
   @Override
@@ -46,7 +43,7 @@ public class PartitionTrigger extends ProtoTrigger.PartitionTrigger implements T
       return true;
     }
     String datasetId = notification.getProperties().get(Notification.DATASET_ID);
-    if (!datasetIdString.equals(datasetId)) {
+    if (!dataset.toString().equals(datasetId)) {
       return false;
     }
     String numPartitionsString = notification.getProperties().get(Notification.NUM_PARTITIONS);
@@ -66,7 +63,7 @@ public class PartitionTrigger extends ProtoTrigger.PartitionTrigger implements T
     return ImmutableList.of(Schedulers.triggerKeyForPartition(dataset));
   }
 
-  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
+  public static Trigger from(ProtoTrigger protoTrigger) {
     if (protoTrigger instanceof ProtoTrigger.PartitionTrigger) {
       ProtoTrigger.PartitionTrigger partitionTrigger = (ProtoTrigger.PartitionTrigger) protoTrigger;
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.PartitionTrigger(

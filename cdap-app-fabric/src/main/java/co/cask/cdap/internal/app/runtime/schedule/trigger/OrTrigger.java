@@ -16,6 +16,7 @@
 
 package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
+import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.Notification;
 
 /**
@@ -23,7 +24,7 @@ import co.cask.cdap.proto.Notification;
  */
 public class OrTrigger extends CompositeTrigger implements SatisfiableTrigger {
 
-  public OrTrigger(SatisfiableTrigger... triggers) {
+  public OrTrigger(Trigger... triggers) {
     super(Type.OR, triggers);
   }
 
@@ -32,9 +33,9 @@ public class OrTrigger extends CompositeTrigger implements SatisfiableTrigger {
     if (satisfied) {
       return true;
     }
-    for (SatisfiableTrigger trigger : triggers) {
-      doUpdateStatus(trigger, notification);
-      if (trigger.isSatisfied()) {
+    for (Trigger trigger : triggers) {
+      doUpdateStatus((SatisfiableTrigger) trigger, notification);
+      if (((SatisfiableTrigger) trigger).isSatisfied()) {
         return satisfied = true;
       }
     }

@@ -33,24 +33,22 @@ import java.util.Set;
  */
 public abstract class CompositeTrigger extends ProtoTrigger.AbstractCompositeTrigger
   implements SatisfiableTrigger {
-  protected final SatisfiableTrigger[] triggers;
   protected boolean satisfied;
   // A map of non-composite trigger type and set of triggers of the same type
-  private final Map<Type, Set<SatisfiableTrigger>> unitTriggers;
+  private Map<Type, Set<Trigger>> unitTriggers;
 
-  public CompositeTrigger(Type type, SatisfiableTrigger... triggers) {
+  public CompositeTrigger(Type type, Trigger... triggers) {
     super(type, triggers);
-    this.triggers = triggers;
-    unitTriggers = new HashMap<>();
     initializeUnitTriggers();
   }
 
-  private void initializeUnitTriggers() {
-    for (SatisfiableTrigger trigger : triggers) {
+  public void initializeUnitTriggers() {
+    unitTriggers = new HashMap<>();
+    for (Trigger trigger : triggers) {
       // Add current non-composite trigger to the corresponding set in the map
       Type triggerType = ((ProtoTrigger) trigger).getType();
       if (!triggerType.isComposite()) {
-        Set<SatisfiableTrigger> triggerList = unitTriggers.get(triggerType);
+        Set<Trigger> triggerList = unitTriggers.get(triggerType);
         if (triggerList == null) {
           triggerList = new HashSet<>();
           unitTriggers.put(triggerType, triggerList);
@@ -58,9 +56,9 @@ public abstract class CompositeTrigger extends ProtoTrigger.AbstractCompositeTri
         triggerList.add(trigger);
       } else {
         // If the current trigger is a composite trigger, add all of its unit triggers to
-        for (Map.Entry<Type, Set<SatisfiableTrigger>> entry :
+        for (Map.Entry<Type, Set<Trigger>> entry :
           ((CompositeTrigger) trigger).getUnitTriggers().entrySet()) {
-          Set<SatisfiableTrigger> triggerList = unitTriggers.get(entry.getKey());
+          Set<Trigger> triggerList = unitTriggers.get(entry.getKey());
           if (triggerList == null) {
             unitTriggers.put(entry.getKey(), entry.getValue());
             continue;
@@ -94,8 +92,8 @@ public abstract class CompositeTrigger extends ProtoTrigger.AbstractCompositeTri
   public List<String> getTriggerKeys() {
     // Only keep unique trigger keys in the set
     Set<String> triggerKeys = new HashSet<>();
-    for (SatisfiableTrigger trigger : triggers) {
-      triggerKeys.addAll(trigger.getTriggerKeys());
+    for (Trigger trigger : triggers) {
+      triggerKeys.addAll(((SatisfiableTrigger) trigger).getTriggerKeys());
     }
     return new ArrayList<>(triggerKeys);
   }
@@ -103,15 +101,15 @@ public abstract class CompositeTrigger extends ProtoTrigger.AbstractCompositeTri
   /**
    * Get all triggers which are not composite trigger in this trigger.
    */
-  public Map<Type, Set<SatisfiableTrigger>> getUnitTriggers() {
+  public Map<Type, Set<Trigger>> getUnitTriggers() {
     return unitTriggers;
   }
 
-  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger, Type type) {
+  public static Trigger from(ProtoTrigger protoTrigger, Type type) {
     if (protoTrigger instanceof ProtoTrigger.AbstractCompositeTrigger) {
       ProtoTrigger.AbstractCompositeTrigger compositeTrigger = (ProtoTrigger.AbstractCompositeTrigger) protoTrigger;
       Trigger[] internalTriggers = compositeTrigger.getTriggers();
-      SatisfiableTrigger[] satisfiableTriggers = new SatisfiableTrigger[internalTriggers.length];
+      Trigger[] satisfiableTriggers = new Trigger[internalTriggers.length];
       for (int i = 0; i < internalTriggers.length; i++) {
         satisfiableTriggers[i] = Schedulers.toSatisfiableTrigger((ProtoTrigger) internalTriggers[i]);
       }

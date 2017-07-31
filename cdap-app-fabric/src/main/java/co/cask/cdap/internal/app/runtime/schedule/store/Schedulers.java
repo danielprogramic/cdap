@@ -156,20 +156,20 @@ public class Schedulers {
   /**
    * Convert a {@link ProtoTrigger} to a corresponding {@link SatisfiableTrigger}
    */
-  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
+  public static Trigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
     switch (protoTrigger.getType()) {
       case TIME:
-        return TimeTrigger.toSatisfiableTrigger(protoTrigger);
+        return TimeTrigger.from(protoTrigger);
       case PARTITION:
-        return PartitionTrigger.toSatisfiableTrigger(protoTrigger);
+        return PartitionTrigger.from(protoTrigger);
       case STREAM_SIZE:
-        return StreamSizeTrigger.toSatisfiableTrigger(protoTrigger);
+        return StreamSizeTrigger.from(protoTrigger);
       case PROGRAM_STATUS:
-        return ProgramStatusTrigger.toSatisfiableTrigger(protoTrigger);
+        return ProgramStatusTrigger.from(protoTrigger);
       case AND:
-        return CompositeTrigger.toSatisfiableTrigger(protoTrigger, ProtoTrigger.Type.AND);
+        return CompositeTrigger.from(protoTrigger, ProtoTrigger.Type.AND);
       case OR:
-        return CompositeTrigger.toSatisfiableTrigger(protoTrigger, ProtoTrigger.Type.OR);
+        return CompositeTrigger.from(protoTrigger, ProtoTrigger.Type.OR);
 
     }
     // should never reach here

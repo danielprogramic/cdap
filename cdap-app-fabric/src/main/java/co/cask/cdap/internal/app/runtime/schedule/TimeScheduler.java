@@ -32,6 +32,7 @@ import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.TopicId;
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
@@ -59,6 +60,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executors;
 
 /**
@@ -377,8 +379,12 @@ public final class TimeScheduler implements Scheduler {
     Map<String, TriggerKey> cronTriggerKeyMap = new HashMap<>();
     // Get a set of TimeTrigger if the schedule's trigger is a composite trigger
     if (trigger instanceof CompositeTrigger) {
-      for (SatisfiableTrigger timeTrigger :
-        ((CompositeTrigger) trigger).getUnitTriggers().get(ProtoTrigger.Type.TIME)) {
+      Set<co.cask.cdap.internal.schedule.trigger.Trigger> triggerSet =
+        ((CompositeTrigger) trigger).getUnitTriggers().get(ProtoTrigger.Type.TIME);
+      if (triggerSet == null) {
+        return ImmutableMap.of();
+      }
+      for (co.cask.cdap.internal.schedule.trigger.Trigger timeTrigger : triggerSet) {
         String cron = ((TimeTrigger) timeTrigger).getCronExpression();
         String triggerName = AbstractSchedulerService.getTriggerName(program, programType, schedule.getName(), cron);
         cronTriggerKeyMap.put(cron, triggerKeyForName(triggerName));

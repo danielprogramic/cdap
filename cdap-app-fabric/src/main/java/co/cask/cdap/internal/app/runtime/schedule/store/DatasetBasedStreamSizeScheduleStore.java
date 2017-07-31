@@ -254,7 +254,7 @@ public class DatasetBasedStreamSizeScheduleStore {
 
   @VisibleForTesting
   String getRowKey(ProgramId programId, SchedulableProgramType programType, String scheduleName) {
-    return String.format("%s:%s", KEY_PREFIX, AbstractSchedulerService.getTriggerName(
+    return String.format("%s:%s", KEY_PREFIX, AbstractSchedulerService.scheduleIdFor(
       programId, programType, scheduleName));
   }
 

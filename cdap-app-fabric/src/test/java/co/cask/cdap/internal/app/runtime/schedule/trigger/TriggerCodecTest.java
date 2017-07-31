@@ -84,18 +84,38 @@ public class TriggerCodecTest {
 
   @Test
   public void testTriggerCodec() {
-    testSerDeserYieldsTrigger(new ProtoTrigger.PartitionTrigger(new DatasetId("test", "myds"), 4),
-                              new PartitionTrigger(new DatasetId("test", "myds"), 4));
-    testSerDeserYieldsTrigger(new ProtoTrigger.TimeTrigger("* * * * *"),
-                              new TimeTrigger("* * * * *"));
-    testSerDeserYieldsTrigger(new ProtoTrigger.StreamSizeTrigger(new StreamId("test", "str"), 1000),
-                              new StreamSizeTrigger(new StreamId("test", "str"), 1000));
-    testSerDeserYieldsTrigger(new ProtoTrigger.ProgramStatusTrigger(new ProgramId("test", "myapp",
-                                                                                  ProgramType.FLOW, "myprog"),
-                                                                    ImmutableSet.of(ProgramStatus.COMPLETED)),
-                              new ProgramStatusTrigger(new ProgramId("test", "myapp",
-                                                                     ProgramType.FLOW, "myprog"),
-                                                       ImmutableSet.of(ProgramStatus.COMPLETED)));
+    ProtoTrigger.PartitionTrigger protoPartition = new ProtoTrigger.PartitionTrigger(new DatasetId("test", "myds"), 4);
+    PartitionTrigger partitionTrigger = new PartitionTrigger(new DatasetId("test", "myds"), 4);
+    testSerDeserYieldsTrigger(protoPartition, partitionTrigger);
+
+    ProtoTrigger.TimeTrigger protoTime = new ProtoTrigger.TimeTrigger("* * * * *");
+    TimeTrigger timeTrigger = new TimeTrigger("* * * * *");
+    testSerDeserYieldsTrigger(protoTime, timeTrigger);
+
+    ProtoTrigger.StreamSizeTrigger protoStreamSize =
+      new ProtoTrigger.StreamSizeTrigger(new StreamId("test", "str"), 1000);
+    StreamSizeTrigger streamSizeTrigger = new StreamSizeTrigger(new StreamId("test", "str"), 1000);
+    testSerDeserYieldsTrigger(protoStreamSize, streamSizeTrigger);
+
+    ProtoTrigger.ProgramStatusTrigger protoProgramStatus =
+      new ProtoTrigger.ProgramStatusTrigger(new ProgramId("test", "myapp", ProgramType.FLOW, "myprog"),
+                                            ImmutableSet.of(ProgramStatus.COMPLETED));
+    ProgramStatusTrigger programStatusTrigger =
+      new ProgramStatusTrigger(new ProgramId("test", "myapp", ProgramType.FLOW, "myprog"),
+                             ImmutableSet.of(ProgramStatus.COMPLETED));
+    testSerDeserYieldsTrigger(protoProgramStatus, programStatusTrigger);
+
+    ProtoTrigger.OrTrigger protoOr =
+      ProtoTrigger.or(protoPartition, ProtoTrigger.and(protoTime, protoStreamSize), protoProgramStatus);
+    OrTrigger orTrigger =
+      new OrTrigger(partitionTrigger, new AndTrigger(timeTrigger, streamSizeTrigger), programStatusTrigger);
+    testSerDeserYieldsTrigger(protoOr, orTrigger);
+
+    ProtoTrigger.AndTrigger protoAnd =
+      ProtoTrigger.and(protoOr, protoTime, ProtoTrigger.or(protoPartition, protoProgramStatus));
+    AndTrigger andTrigger =
+      new AndTrigger(orTrigger, timeTrigger, new OrTrigger(partitionTrigger, programStatusTrigger));
+    testSerDeserYieldsTrigger(protoAnd, andTrigger);
   }
 
   private void testSerDeserYieldsTrigger(ProtoTrigger proto, Trigger trigger) {

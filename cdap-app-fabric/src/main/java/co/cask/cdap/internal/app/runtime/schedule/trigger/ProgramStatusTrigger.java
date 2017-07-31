@@ -18,6 +18,7 @@ package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
 
 import co.cask.cdap.api.ProgramStatus;
+import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.Notification;
 import co.cask.cdap.proto.ProtoTrigger;
 import co.cask.cdap.proto.id.ProgramId;
@@ -60,7 +61,7 @@ public class ProgramStatusTrigger extends ProtoTrigger.ProgramStatusTrigger impl
     return ImmutableList.of(programId.toString());
   }
 
-  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
+  public static Trigger from(ProtoTrigger protoTrigger) {
     if (protoTrigger instanceof ProtoTrigger.ProgramStatusTrigger) {
       ProtoTrigger.ProgramStatusTrigger programStatusTrigger = (ProtoTrigger.ProgramStatusTrigger) protoTrigger;
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.ProgramStatusTrigger(

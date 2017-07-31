@@ -33,6 +33,7 @@ import co.cask.cdap.internal.app.runtime.schedule.trigger.CompositeTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.SatisfiableTrigger;
 import co.cask.cdap.internal.app.runtime.schedule.trigger.StreamSizeTrigger;
 import co.cask.cdap.internal.schedule.StreamSizeSchedule;
+import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.messaging.MessagingService;
 import co.cask.cdap.notifications.service.NotificationContext;
 import co.cask.cdap.notifications.service.NotificationHandler;
@@ -69,6 +70,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executor;
@@ -219,8 +221,12 @@ public class StreamSizeScheduler implements Scheduler {
   private List<String> getTaskNames(ProgramSchedule schedule) {
     List<String> schedules = new ArrayList<>();
     if (schedule.getTrigger() instanceof CompositeTrigger) {
-      for (SatisfiableTrigger trigger :
-        ((CompositeTrigger) schedule.getTrigger()).getUnitTriggers().get(ProtoTrigger.Type.STREAM_SIZE)) {
+      Set<Trigger> triggerSet =
+        ((CompositeTrigger) schedule.getTrigger()).getUnitTriggers().get(ProtoTrigger.Type.STREAM_SIZE);
+      if (triggerSet == null) {
+        return ImmutableList.of();
+      }
+      for (Trigger trigger : triggerSet) {
         StreamSizeTrigger streamSizeTrigger = (StreamSizeTrigger) trigger;
         String taskName = AbstractSchedulerService.getTaskName(
           schedule.getProgramId(), schedule.getProgramId().getType().getSchedulableType(), schedule.getName(),
@@ -243,8 +249,12 @@ public class StreamSizeScheduler implements Scheduler {
   private static Map<String, StreamSizeSchedule> toStreamSizeSchedules(ProgramSchedule schedule) {
     Map<String, StreamSizeSchedule> schedules = new HashMap<>();
     if (schedule.getTrigger() instanceof CompositeTrigger) {
-      for (SatisfiableTrigger trigger :
-        ((CompositeTrigger) schedule.getTrigger()).getUnitTriggers().get(ProtoTrigger.Type.STREAM_SIZE)) {
+      Set<Trigger> triggerSet =
+        ((CompositeTrigger) schedule.getTrigger()).getUnitTriggers().get(ProtoTrigger.Type.STREAM_SIZE);
+      if (triggerSet == null) {
+        return ImmutableMap.of();
+      }
+      for (Trigger trigger : triggerSet) {
         StreamSizeTrigger streamSizeTrigger = (StreamSizeTrigger) trigger;
         String taskName = AbstractSchedulerService.getTaskName(schedule.getProgramId(),
                                                                schedule.getProgramId().getType().getSchedulableType(),

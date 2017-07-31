@@ -16,6 +16,7 @@
 
 package co.cask.cdap.internal.app.runtime.schedule.trigger;
 
+import co.cask.cdap.internal.schedule.trigger.Trigger;
 import co.cask.cdap.proto.Notification;
 
 /**
@@ -23,7 +24,7 @@ import co.cask.cdap.proto.Notification;
  */
 public class AndTrigger extends CompositeTrigger implements SatisfiableTrigger {
 
-  public AndTrigger(SatisfiableTrigger... triggers) {
+  public AndTrigger(Trigger... triggers) {
     super(Type.AND, triggers);
   }
 
@@ -33,9 +34,9 @@ public class AndTrigger extends CompositeTrigger implements SatisfiableTrigger {
       return true;
     }
     boolean satisfied = true;
-    for (SatisfiableTrigger trigger : triggers) {
-      doUpdateStatus(trigger, notification);
-      if (!trigger.isSatisfied() && satisfied) {
+    for (Trigger trigger : triggers) {
+      doUpdateStatus((SatisfiableTrigger) trigger, notification);
+      if (!((SatisfiableTrigger) trigger).isSatisfied() && satisfied) {
         satisfied = false;
       }
     }

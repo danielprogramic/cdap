@@ -70,7 +70,7 @@ public class TimeTrigger extends ProtoTrigger.TimeTrigger implements Trigger, Sa
     return ImmutableList.of();
   }
 
-  public static SatisfiableTrigger toSatisfiableTrigger(ProtoTrigger protoTrigger) {
+  public static Trigger from(ProtoTrigger protoTrigger) {
     if (protoTrigger instanceof ProtoTrigger.TimeTrigger) {
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.TimeTrigger(
         ((ProtoTrigger.TimeTrigger) protoTrigger).getCronExpression());
