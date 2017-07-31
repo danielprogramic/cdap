@@ -17,28 +17,10 @@
 
 package co.cask.cdap.internal.app.services;
 
-import co.cask.cdap.app.runtime.ProgramRuntimeService;
-import co.cask.cdap.proto.ProgramType;
 import com.google.common.util.concurrent.Service;
-
-import java.util.Set;
 
 /**
  * A service interface that defines the behavior when run records are corrected
  */
 public interface RunRecordCorrectorService extends Service {
-  /**
-   * @see #validateAndCorrectRunningRunRecords(ProgramType, Set)
-   */
-  void validateAndCorrectRunningRunRecords();
-
-  /**
-   * Fix all the possible inconsistent states for RunRecords that shows it is in RUNNING state but actually not
-   * via check to {@link ProgramRuntimeService} for a type of CDAP program.
-   *
-   * @param programType The type of program the run records need to validate and update.
-   * @param processedInvalidRunRecordIds the {@link Set} of processed invalid run record ids.
-   */
-  void validateAndCorrectRunningRunRecords(final ProgramType programType,
-                                           final Set<String> processedInvalidRunRecordIds);
 }

@@ -34,21 +34,16 @@ import co.cask.cdap.common.NotFoundException;
 import co.cask.cdap.common.ProgramNotFoundException;
 import co.cask.cdap.common.app.RunIds;
 import co.cask.cdap.common.conf.CConfiguration;
-import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.io.CaseInsensitiveEnumTypeAdapterFactory;
 import co.cask.cdap.common.security.AuthEnforce;
-import co.cask.cdap.common.service.Retries;
-import co.cask.cdap.common.service.RetryStrategies;
 import co.cask.cdap.config.PreferencesStore;
 import co.cask.cdap.internal.app.ApplicationSpecificationAdapter;
-import co.cask.cdap.internal.app.runtime.AbstractListener;
 import co.cask.cdap.internal.app.runtime.BasicArguments;
 import co.cask.cdap.internal.app.runtime.ProgramOptionConstants;
 import co.cask.cdap.internal.app.runtime.SimpleProgramOptions;
 import co.cask.cdap.internal.app.runtime.schedule.ProgramSchedule;
 import co.cask.cdap.internal.app.runtime.schedule.ProgramScheduleStatus;
 import co.cask.cdap.internal.app.store.RunRecordMeta;
-import co.cask.cdap.proto.BasicThrowable;
 import co.cask.cdap.proto.Id;
 import co.cask.cdap.proto.NamespaceMeta;
 import co.cask.cdap.proto.ProgramRecord;
@@ -70,12 +65,7 @@ import co.cask.cdap.security.spi.authentication.AuthenticationContext;
 import co.cask.cdap.security.spi.authorization.AuthorizationEnforcer;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import co.cask.cdap.store.NamespaceStore;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -84,7 +74,6 @@ import com.google.gson.GsonBuilder;
 import com.google.inject.Inject;
 import org.apache.twill.api.RunId;
 import org.apache.twill.api.logging.LogEntry;
-import org.apache.twill.common.Threads;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,14 +82,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -753,7 +738,7 @@ public class ProgramLifecycleService extends AbstractIdleService {
    * @return {@code true} of we should check and {@code false} otherwise
    */
   protected boolean shouldCorrectForWorkflowChildren(RunRecordMeta runRecordMeta,
-                                           Set<String> processedInvalidRunRecordIds) {
+                                                     Set<String> processedInvalidRunRecordIds) {
     // check if it is part of workflow because it may not have actual runtime info
     if (runRecordMeta.getProperties() != null && runRecordMeta.getProperties().get("workflowrunid") != null) {
 

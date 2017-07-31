@@ -57,8 +57,7 @@ public class AbstractRunRecordCorrectorService extends AbstractIdleService imple
     this.runtimeService = runtimeService;
   }
 
-  @Override
-  public void validateAndCorrectRunningRunRecords() {
+  private void validateAndCorrectRunningRunRecords() {
     Set<String> processedInvalidRunRecordIds = Sets.newHashSet();
 
     // Lets update the running programs run records
@@ -72,7 +71,14 @@ public class AbstractRunRecordCorrectorService extends AbstractIdleService imple
     }
   }
 
-  public void validateAndCorrectRunningRunRecords(final ProgramType programType,
+  /**
+   * Fix all the possible inconsistent states for RunRecords that shows it is in RUNNING state but actually not
+   * via check to {@link ProgramRuntimeService} for a type of CDAP program.
+   *
+   * @param programType The type of program the run records need to validate and update.
+   * @param processedInvalidRunRecordIds the {@link Set} of processed invalid run record ids.
+   */
+  private void validateAndCorrectRunningRunRecords(final ProgramType programType,
                                                   final Set<String> processedInvalidRunRecordIds) {
     final Map<RunId, ProgramRuntimeService.RuntimeInfo> runIdToRuntimeInfo = runtimeService.list(programType);
 

@@ -20,8 +20,11 @@ import co.cask.cdap.app.runtime.ProgramRuntimeService;
 import co.cask.cdap.app.store.Store;
 import com.google.inject.Inject;
 
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.RunnableFuture;
+
 /**
- * A local-only run record corrector that corrects run records once upon app fabric server startup.
+ * A local-mode only run record corrector that corrects run records once upon app fabric server startup.
  */
 public class LocalRunRecordCorrectorService extends AbstractRunRecordCorrectorService {
 
@@ -36,7 +39,9 @@ public class LocalRunRecordCorrectorService extends AbstractRunRecordCorrectorSe
   protected void startUp() throws Exception {
     super.startUp();
 
-    // Start up the RunRecordCorrector once to correct any inconsistent states
-    new Thread(new RunRecordsCorrectorRunnable()).start();
+    RunnableFuture<Void> task = new FutureTask<>(new RunRecordsCorrectorRunnable(), null);
+    task.run();
+    // Block until RunRecordCorrector finishes
+    task.get();
   }
 }
