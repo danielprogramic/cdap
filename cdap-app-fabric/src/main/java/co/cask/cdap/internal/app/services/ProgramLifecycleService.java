@@ -114,7 +114,6 @@ public class ProgramLifecycleService extends AbstractIdleService {
     .registerTypeAdapterFactory(new CaseInsensitiveEnumTypeAdapterFactory())
     .create();
 
-  private final ScheduledExecutorService scheduledExecutorService;
   private final Store store;
   private final ProgramRuntimeService runtimeService;
   private final CConfiguration cConf;
@@ -134,7 +133,6 @@ public class ProgramLifecycleService extends AbstractIdleService {
     this.nsStore = nsStore;
     this.runtimeService = runtimeService;
     this.propertiesResolver = propertiesResolver;
-    this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
     this.cConf = cConf;
     this.preferencesStore = preferencesStore;
     this.authorizationEnforcer = authorizationEnforcer;
@@ -146,27 +144,12 @@ public class ProgramLifecycleService extends AbstractIdleService {
   protected void startUp() throws Exception {
     LOG.info("Starting ProgramLifecycleService");
 
-    long interval = cConf.getLong(Constants.AppFabric.PROGRAM_RUNID_CORRECTOR_INTERVAL_SECONDS);
-    if (interval <= 0) {
-      LOG.debug("Invalid run id corrector interval {}. Setting it to 180 seconds.", interval);
-      interval = 180L;
-    }
-    scheduledExecutorService.scheduleWithFixedDelay(new RunRecordsCorrectorRunnable(this),
-                                                    2L, interval, TimeUnit.SECONDS);
+
   }
 
   @Override
   protected void shutDown() throws Exception {
     LOG.info("Shutting down ProgramLifecycleService");
-
-    scheduledExecutorService.shutdown();
-    try {
-      if (!scheduledExecutorService.awaitTermination(5, TimeUnit.SECONDS)) {
-        scheduledExecutorService.shutdownNow();
-      }
-    } catch (InterruptedException ie) {
-      Thread.currentThread().interrupt();
-    }
   }
 
   /**
@@ -763,119 +746,14 @@ public class ProgramLifecycleService extends AbstractIdleService {
   }
 
   /**
-   * Fix all the possible inconsistent states for RunRecords that shows it is in RUNNING state but actually not
-   * via check to {@link ProgramRuntimeService}.
-   */
-  private void validateAndCorrectRunningRunRecords() {
-    Set<String> processedInvalidRunRecordIds = Sets.newHashSet();
-
-    // Lets update the running programs run records
-    for (ProgramType programType : ProgramType.values()) {
-      validateAndCorrectRunningRunRecords(programType, processedInvalidRunRecordIds);
-    }
-
-    if (!processedInvalidRunRecordIds.isEmpty()) {
-      LOG.info("Corrected {} of run records with RUNNING status but no actual program running.",
-               processedInvalidRunRecordIds.size());
-    }
-  }
-
-  /**
-   * Fix all the possible inconsistent states for RunRecords that shows it is in RUNNING state but actually not
-   * via check to {@link ProgramRuntimeService} for a type of CDAP program.
-   *
-   * @param programType The type of program the run records need to validate and update.
-   * @param processedInvalidRunRecordIds the {@link Set} of processed invalid run record ids.
-   */
-  @VisibleForTesting
-  void validateAndCorrectRunningRunRecords(final ProgramType programType,
-                                           final Set<String> processedInvalidRunRecordIds) {
-    final Map<RunId, RuntimeInfo> runIdToRuntimeInfo = runtimeService.list(programType);
-
-    LOG.trace("Start getting run records not actually running ...");
-    Collection<RunRecordMeta> notActuallyRunning = store.getRuns(ProgramRunStatus.RUNNING,
-                                                           new com.google.common.base.Predicate<RunRecordMeta>() {
-      @Override
-      public boolean apply(RunRecordMeta input) {
-        String runId = input.getPid();
-        // Check if it is not actually running.
-        return !runIdToRuntimeInfo.containsKey(RunIds.fromString(runId));
-      }
-    }).values();
-    LOG.trace("End getting {} run records not actually running.", notActuallyRunning.size());
-
-    final Map<String, ProgramId> runIdToProgramId = new HashMap<>();
-
-    LOG.trace("Start getting invalid run records  ...");
-    Collection<RunRecordMeta> invalidRunRecords =
-      Collections2.filter(notActuallyRunning, new com.google.common.base.Predicate<RunRecordMeta>() {
-        @Override
-        public boolean apply(RunRecordMeta input) {
-          String runId = input.getPid();
-          // check for program Id for the run record, if null then it is invalid program type.
-          ProgramId targetProgramId = retrieveProgramIdForRunRecord(programType, runId);
-
-          // Check if run id is for the right program type
-          if (targetProgramId != null) {
-            runIdToProgramId.put(runId, targetProgramId);
-            return true;
-          } else {
-            return false;
-          }
-        }
-      });
-
-    // don't correct run records for programs running inside a workflow
-    // for instance, a MapReduce running in a Workflow will not be contained in the runtime info in this class
-    invalidRunRecords = Collections2.filter(invalidRunRecords, new com.google.common.base.Predicate<RunRecordMeta>() {
-      @Override
-      public boolean apply(RunRecordMeta invalidRunRecordMeta) {
-        boolean shouldCorrect = shouldCorrectForWorkflowChildren(invalidRunRecordMeta, processedInvalidRunRecordIds);
-        if (!shouldCorrect) {
-          LOG.trace("Will not correct invalid run record {} since it's parent workflow still running.",
-                    invalidRunRecordMeta);
-          return false;
-        }
-        return true;
-      }
-    });
-
-    LOG.trace("End getting invalid run records.");
-
-    if (!invalidRunRecords.isEmpty()) {
-      LOG.warn("Found {} RunRecords with RUNNING status and the program not actually running for program type {}",
-               invalidRunRecords.size(), programType.getPrettyName());
-    } else {
-      LOG.trace("No RunRecords found with RUNNING status and the program not actually running for program type {}",
-                programType.getPrettyName());
-    }
-
-    // Now lets correct the invalid RunRecords
-    for (RunRecordMeta invalidRunRecordMeta : invalidRunRecords) {
-      String runId = invalidRunRecordMeta.getPid();
-      ProgramId targetProgramId = runIdToProgramId.get(runId);
-
-      boolean updated = store.compareAndSetStatus(targetProgramId, runId, ProgramController.State.ALIVE.getRunStatus(),
-                                                  ProgramController.State.ERROR.getRunStatus());
-      if (updated) {
-        LOG.warn("Fixed RunRecord {} for program {} with RUNNING status because the program was not " +
-                   "actually running",
-                 runId, targetProgramId);
-
-        processedInvalidRunRecordIds.add(runId);
-      }
-    }
-  }
-
-  /**
-   * Helper method to check if the run record is a child program of a Workflow
+   * Method to check if the run record is a child program of a Workflow
    *
    * @param runRecordMeta The target {@link RunRecordMeta} to check
    * @param processedInvalidRunRecordIds the {@link Set} of processed invalid run record ids.
    * @return {@code true} of we should check and {@code false} otherwise
    */
-  private boolean shouldCorrectForWorkflowChildren(RunRecordMeta runRecordMeta,
-                                                   Set<String> processedInvalidRunRecordIds) {
+  protected boolean shouldCorrectForWorkflowChildren(RunRecordMeta runRecordMeta,
+                                           Set<String> processedInvalidRunRecordIds) {
     // check if it is part of workflow because it may not have actual runtime info
     if (runRecordMeta.getProperties() != null && runRecordMeta.getProperties().get("workflowrunid") != null) {
 
@@ -909,7 +787,7 @@ public class ProgramLifecycleService extends AbstractIdleService {
    * @return the program id of the run record or {@code null} if does not exist.
    */
   @Nullable
-  private ProgramId retrieveProgramIdForRunRecord(ProgramType programType, String runId) {
+  protected ProgramId retrieveProgramIdForRunRecord(ProgramType programType, String runId) {
 
     // Get list of namespaces (borrow logic from AbstractAppFabricHttpHandler#listPrograms)
     List<NamespaceMeta> namespaceMetas = nsStore.list();
@@ -1072,35 +950,5 @@ public class ProgramLifecycleService extends AbstractIdleService {
       throw new BadRequestException("Update log levels at runtime is only supported in distributed mode");
     }
     return ((LogLevelUpdater) programController);
-  }
-
-  /**
-   * Helper class to run in separate thread to validate the invalid running run records
-   */
-  private static class RunRecordsCorrectorRunnable implements Runnable {
-    private static final Logger LOG = LoggerFactory.getLogger(RunRecordsCorrectorRunnable.class);
-
-    private final ProgramLifecycleService programLifecycleService;
-
-    RunRecordsCorrectorRunnable(ProgramLifecycleService programLifecycleService) {
-      this.programLifecycleService = programLifecycleService;
-    }
-
-    @Override
-    public void run() {
-      try {
-        RunRecordsCorrectorRunnable.LOG.trace("Start correcting invalid run records ...");
-
-        // Lets update the running programs run records
-        programLifecycleService.validateAndCorrectRunningRunRecords();
-
-        RunRecordsCorrectorRunnable.LOG.trace("End correcting invalid run records.");
-      } catch (Throwable t) {
-        // Ignore any exception thrown since this behaves like daemon thread.
-        //noinspection ThrowableResultOfMethodCallIgnored
-        LOG.warn("Unable to complete correcting run records: {}", Throwables.getRootCause(t).getMessage());
-        LOG.debug("Exception thrown when running run id cleaner.", t);
-      }
-    }
   }
 }

@@ -45,15 +45,15 @@ import java.util.concurrent.TimeUnit;
 /**
  * Unit test for {@link ProgramLifecycleService}
  */
-public class ProgramLifecycleServiceTest extends AppFabricTestBase {
+public class RunRecordCorrectorServiceTest extends AppFabricTestBase {
 
-  private static ProgramLifecycleService programLifecycleService;
+  private static RunRecordCorrectorService runRecordCorrectorService;
   private static Store store;
   private static ProgramRuntimeService runtimeService;
 
   @BeforeClass
   public static void setup() throws Exception {
-    programLifecycleService = getInjector().getInstance(ProgramLifecycleService.class);
+    runRecordCorrectorService = getInjector().getInstance(RunRecordCorrectorService.class);
     store = getInjector().getInstance(DefaultStore.class);
     runtimeService = getInjector().getInstance(ProgramRuntimeService.class);
   }
@@ -120,7 +120,7 @@ public class ProgramLifecycleServiceTest extends AppFabricTestBase {
 
     // Lets fix it
     Set<String> processedInvalidRunRecordIds = Sets.newHashSet();
-    programLifecycleService.validateAndCorrectRunningRunRecords(ProgramType.FLOW, processedInvalidRunRecordIds);
+    runRecordCorrectorService.validateAndCorrectRunningRunRecords(ProgramType.FLOW, processedInvalidRunRecordIds);
 
     // Verify there is one FAILED run record for the application
     runRecords = getProgramRuns(wordcountFlow1, ProgramRunStatus.FAILED.toString());
