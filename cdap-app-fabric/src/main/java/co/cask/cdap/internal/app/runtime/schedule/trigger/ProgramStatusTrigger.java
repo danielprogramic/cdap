@@ -71,7 +71,7 @@ public class ProgramStatusTrigger extends ProtoTrigger.ProgramStatusTrigger impl
    * @return an instance of this class with the same information contained in the given trigger
    */
   public static Trigger fromScheduleTrigger(ScheduleTrigger trigger) {
-    if (trigger instanceof ScheduleTrigger.AbstractCompositeTrigger) {
+    if (trigger instanceof ScheduleTrigger.ProgramStatusTrigger) {
       ScheduleTrigger.ProgramStatusTrigger programStatusTrigger = (ScheduleTrigger.ProgramStatusTrigger) trigger;
       return new co.cask.cdap.internal.app.runtime.schedule.trigger.ProgramStatusTrigger(
         new ApplicationId(programStatusTrigger.getProgramNamespace(), programStatusTrigger.getProgramApplication(),
